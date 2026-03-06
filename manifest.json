@@ -1,0 +1,16 @@
+{
+  "name": "Adrian's Family Tipping Comp",
+  "short_name": "Adrian's Footy",
+  "description": "AFL football tipping competition for family and friends.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/9.x/shapes/svg?seed=adrian",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ]
+}

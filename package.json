@@ -1,0 +1,38 @@
+{
+  "name": "adrian's-family-tipping-comp",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "npm run build --prefix functions && vite build",
+    "lint": "tsc --noEmit",
+    "preview": "vite preview",
+    "deploy": "npm run build && firebase deploy --only hosting,functions"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/cors": "^2.8.19",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "firebase": "^12.9.0",
+    "firebase-admin": "^13.7.0",
+    "firebase-functions": "^7.0.6",
+    "lucide-react": "^0.562.0",
+    "motion": "^12.34.3",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "react-router-dom": "^7.11.0",
+    "resend": "^6.9.2",
+    "tailwindcss": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "firebase-tools": "^15.7.0",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
