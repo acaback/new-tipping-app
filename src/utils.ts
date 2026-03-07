@@ -1,6 +1,6 @@
 
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
-import { Game, User, LadderEntry, ApplicationState, AFLLadderEntry } from './types.ts';
+import { collection, doc, getDocs, setDoc, getDoc } from 'firebase/firestore';
+import { Game, User, LadderEntry, ApplicationState, AFLLadderEntry, GameSettings } from './types.ts';
 import { db } from './firebase';
 
 export const SESSION_KEY = 'adrians_tipping_session';
@@ -11,6 +11,7 @@ export const isLocalMode = () => {
 };
 
 const USERS_STORAGE_KEY = 'adrians_tipping_users';
+const SETTINGS_STORAGE_KEY = 'adrians_tipping_settings';
 
 export const fetchGames = async (year: number): Promise<Game[]> => {
   try {
@@ -58,6 +59,40 @@ export const saveAllUsersToDB = async (users: User[]) => {
     }
   } catch (error) {
     console.error("Error saving users to Firestore: ", error);
+  }
+};
+
+export const loadGameSettings = async (): Promise<GameSettings> => {
+  if (isLocalMode()) {
+    const local = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (local) return JSON.parse(local);
+    return { manualLocks: {} };
+  }
+
+  try {
+    const docRef = doc(db, 'settings', 'global');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as GameSettings;
+    }
+    return { manualLocks: {} };
+  } catch (error) {
+    console.error("Error loading settings from Firestore: ", error);
+    const local = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (local) return JSON.parse(local);
+    return { manualLocks: {} };
+  }
+};
+
+export const saveGameSettings = async (settings: GameSettings) => {
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+
+  if (isLocalMode()) return;
+
+  try {
+    await setDoc(doc(db, 'settings', 'global'), settings);
+  } catch (error) {
+    console.error("Error saving settings to Firestore: ", error);
   }
 };
 
@@ -165,7 +200,20 @@ export const generateLadder = (users: User[], games: Game[], year: number): Ladd
   }).sort((a,b) => b.points - a.points || a.totalMarginError - b.totalMarginError);
 };
 
-export const isGameLocked = (game: Game, user: User) => user.unlockedGames[game.id] ? false : new Date() > new Date(game.date.includes('+') || game.date.includes('Z') ? game.date : game.date.replace(' ', 'T') + '+10:00');
+export const isGameLocked = (game: Game, user: User, settings?: GameSettings) => {
+  // 1. Check manual global locks first
+  if (settings?.manualLocks?.[game.id]) {
+    const lockStatus = settings.manualLocks[game.id];
+    if (lockStatus === 'locked') return true;
+    if (lockStatus === 'unlocked') return false;
+  }
+
+  // 2. Check per-user override (legacy/individual bypass)
+  if (user.unlockedGames[game.id]) return false;
+
+  // 3. Default time-based logic
+  return new Date() > new Date(game.date.includes('+') || game.date.includes('Z') ? game.date : game.date.replace(' ', 'T') + '+10:00');
+};
 
 export const formatAFLDate = (dateStr: string, options: Intl.DateTimeFormatOptions = {}) => {
   // Squiggle 'date' is in AEST/AEDT. If no offset, assume AEST (+10:00)

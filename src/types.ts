@@ -46,6 +46,10 @@ export interface LadderEntry {
   correctTips: number;
 }
 
+export interface GameSettings {
+  manualLocks: { [gameId: number]: 'locked' | 'unlocked' | 'default' };
+}
+
 export interface ApplicationState {
   userId: string | null;
 }

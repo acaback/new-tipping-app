@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Game, User, Tip } from '../types.ts';
+import { Game, User, Tip, GameSettings } from '../types.ts';
 import { isGameLocked, getTeamLogoUrl, getTeamColors, cleanTeamName, isLocalMode, formatAFLDate } from '../utils.ts';
 import { Lock, Unlock, CheckCircle, Trophy, HelpCircle, Star, Users, AlertCircle, Send, Save, Info, Clock, Palette, Activity, PlayCircle, ChevronRight, ChevronLeft, Plus, Minus, Dices, Sparkles, Printer } from 'lucide-react';
 
@@ -11,6 +11,7 @@ interface TippingPageProps {
   onUpdateUsers: (users: User[]) => void;
   games: Game[];
   year: number;
+  gameSettings: GameSettings;
 }
 
 const MarginSelector: React.FC<{ 
@@ -97,7 +98,7 @@ const MarginSelector: React.FC<{
   );
 };
 
-const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, games, year }) => {
+const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, games, year, gameSettings }) => {
   const rounds = useMemo(() => Array.from(new Set(games.map(g => g.round))).sort((a: number, b: number) => a - b), [games]);
   const [selectedRound, setSelectedRound] = useState<number>(1);
   const [draftTips, setDraftTips] = useState<Record<number, Tip[]>>({});
@@ -169,7 +170,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
 
   const handleTipClick = (gameId: number, team: string) => {
     const game = games.find(g => g.id === gameId);
-    if (!game || isGameLocked(game, user)) return;
+    if (!game || isGameLocked(game, user, gameSettings)) return;
 
     setDraftTips(current => {
       const currentTips = [...(current[selectedRound] || [])];
@@ -196,7 +197,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
     setDraftTips(current => {
       const newTips = [...(current[selectedRound] || [])];
       roundGames.forEach(game => {
-        if (!isGameLocked(game, user)) {
+        if (!isGameLocked(game, user, gameSettings)) {
           const tipIndex = newTips.findIndex(t => t.gameId === game.id);
           const winner = Math.random() > 0.5 ? game.hteam : game.ateam;
           const margin = game.id === roundGames[0].id ? Math.floor(Math.random() * 40) + 10 : null;
@@ -264,7 +265,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
             teamPicks.push(u);
             picks[game.id].total++;
           }
-        } else if (isGameLocked(game, u)) {
+        } else if (isGameLocked(game, u, gameSettings)) {
           // Automatic Away Team Fallback for locked games with no tip
           const teamPicks = picks[game.id].teams[game.ateam];
           if (teamPicks) {
@@ -433,7 +434,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
       {/* Games List */}
       <div className="space-y-10 printable-area">
         {roundGames.map((game, idx) => {
-          const locked = isGameLocked(game, user);
+          const locked = isGameLocked(game, user, gameSettings);
           let currentTip = (draftTips[selectedRound] || []).find(t => t.gameId === game.id);
           
           // Fallback to Away Team if locked and no tip
@@ -589,11 +590,12 @@ const MatchTeam: React.FC<{
       disabled={disabled}
       initial={false}
       animate={{
-        scale: isSelected ? 1.08 : 1,
+        scale: isSelected ? 1.05 : 1,
         zIndex: isSelected ? 20 : 10,
-        backgroundColor: isSelected ? colors.primary : 'rgba(255, 255, 255, 1)', // Fallback, will be overridden by classes
+        backgroundColor: isSelected ? colors.primary : 'transparent',
+        borderColor: isSelected ? colors.secondary : 'transparent',
       }}
-      whileHover={!disabled ? { scale: isSelected ? 1.1 : 1.03, y: -4 } : {}}
+      whileHover={!disabled ? { scale: isSelected ? 1.08 : 1.03, y: -4 } : {}}
       whileTap={!disabled ? { scale: 0.97 } : {}}
       className={`relative w-full h-32 rounded-[2.5rem] border-[4px] transition-all p-6 flex items-center gap-4 ${align === 'right' ? 'flex-row-reverse text-right' : 'text-left'} ${isSelected ? 'shadow-2xl' : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500 hover:shadow-xl'} ${disabled ? 'opacity-90' : 'cursor-pointer'}`}
       style={isSelected ? { 
@@ -605,9 +607,13 @@ const MatchTeam: React.FC<{
     >
       <div className="shrink-0 relative">
         <motion.div 
-          animate={isSelected ? { rotate: [0, -10, 10, -10, 0] } : {}}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-16 h-16 bg-white dark:bg-slate-700 p-3 rounded-[1.5rem] shadow-xl flex items-center justify-center border-2 border-slate-50 dark:border-white/10"
+          animate={isSelected ? { 
+            rotate: [0, -10, 10, -10, 0],
+            scale: [1, 1.15, 1],
+          } : { scale: 1 }}
+          whileTap={!disabled ? { scale: 0.9 } : {}}
+          transition={{ duration: 0.4 }}
+          className={`w-16 h-16 p-3 rounded-[1.5rem] shadow-xl flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-white border-white' : 'bg-white dark:bg-slate-700 border-slate-50 dark:border-white/10'}`}
         >
           <img src={getTeamLogoUrl(name)} alt={name} className="w-full h-full object-contain" />
         </motion.div>
@@ -618,7 +624,7 @@ const MatchTeam: React.FC<{
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
-              className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg"
+              className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg z-20"
             >
               <div className="w-4 h-4 rounded-full" style={{ backgroundColor: colors.secondary }} />
             </motion.div>

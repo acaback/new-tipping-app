@@ -22,8 +22,8 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Game, User } from './types.ts';
-import { fetchGames, loadUsersFromDB, saveAllUsersToDB, saveSession, loadSession, isLocalMode, getTeamColors } from './utils.ts';
+import { Game, User, GameSettings } from './types.ts';
+import { fetchGames, loadUsersFromDB, saveAllUsersToDB, saveSession, loadSession, isLocalMode, getTeamColors, loadGameSettings, saveGameSettings } from './utils.ts';
 import TippingPage from './pages/Tipping.tsx';
 import LadderPage from './pages/Ladder.tsx';
 import AdminPage from './pages/Admin.tsx';
@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [gameSettings, setGameSettings] = useState<GameSettings>({ manualLocks: {} });
   const [currentYear, setCurrentYear] = useState<number>(2026);
   const [appReady, setAppReady] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -47,7 +48,9 @@ const App: React.FC = () => {
     const init = async () => {
       const data = await loadUsersFromDB();
       const session = loadSession();
+      const settings = await loadGameSettings();
       setUsers(data);
+      setGameSettings(settings);
       
       if (session.userId) {
         const found = data.find(u => u.id === session.userId);
@@ -86,6 +89,13 @@ const App: React.FC = () => {
       const refreshedUser = updatedUsers.find(u => u.id === currentUser.id);
       if (refreshedUser) setCurrentUser(refreshedUser);
     }
+    setTimeout(() => setSaving(false), 800);
+  };
+
+  const handleUpdateSettings = async (updatedSettings: GameSettings) => {
+    setSaving(true);
+    setGameSettings(updatedSettings);
+    await saveGameSettings(updatedSettings);
     setTimeout(() => setSaving(false), 800);
   };
 
@@ -167,7 +177,7 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-screen bg-white dark:bg-slate-950 flex flex-col overflow-hidden text-slate-600 dark:text-slate-300">
         {/* System Bar */}
-        <div className="h-12 bg-slate-100 dark:bg-black border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 shrink-0 z-50">
+        <div className="h-12 bg-slate-100 dark:bg-black border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 shrink-0 z-50 print:hidden">
           <div className="flex items-center gap-6">
             <div className="flex gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
@@ -200,7 +210,7 @@ const App: React.FC = () => {
 
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar */}
-          <nav className="w-80 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-white/5 flex flex-col shrink-0 backdrop-blur-3xl">
+          <nav className="w-80 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-white/5 flex flex-col shrink-0 backdrop-blur-3xl print:hidden">
             <div className="p-10">
               <div className="flex items-center gap-4 p-5 rounded-[2rem] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-2xl">
                 <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/10" style={{ backgroundColor: teamColors.primary, boxShadow: `0 10px 20px ${teamColors.primary}40` }}>
@@ -238,8 +248,8 @@ const App: React.FC = () => {
           </nav>
 
           {/* Main Content Area */}
-          <main className="flex-1 bg-slate-50 dark:bg-slate-900 overflow-y-auto relative text-slate-900 dark:text-slate-300">
-            <div className="p-12 md:p-16">
+          <main className="flex-1 bg-slate-50 dark:bg-slate-900 overflow-y-auto relative text-slate-900 dark:text-slate-300 print:overflow-visible print:bg-white">
+            <div className="p-12 md:p-16 print:p-0">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={location.pathname}
@@ -250,12 +260,12 @@ const App: React.FC = () => {
                 >
                   <Routes location={location}>
                     <Route path="/" element={<DashboardPage user={currentUser} users={users} games={games} year={currentYear} />} />
-                    <Route path="/tips" element={<TippingPage user={currentUser} users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} />} />
+                    <Route path="/tips" element={<TippingPage user={currentUser} users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} gameSettings={gameSettings} />} />
                     <Route path="/ladder" element={<LadderPage users={users} games={games} year={currentYear} />} />
                     <Route path="/banter" element={<BanterPage user={currentUser} />} />
                     <Route path="/reports" element={<ReportsPage users={users} games={games} year={currentYear} />} />
                     {currentUser.isAdmin && (
-                      <Route path="/admin" element={<AdminPage users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} />} />
+                      <Route path="/admin" element={<AdminPage users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} gameSettings={gameSettings} onUpdateSettings={handleUpdateSettings} />} />
                     )}
                     <Route path="/profile" element={<ProfilePage user={currentUser} users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

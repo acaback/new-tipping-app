@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Game } from '../types.ts';
-import { formatAFLDate } from '../utils.ts';
+import { User, Game, GameSettings } from '../types.ts';
+import { formatAFLDate, isGameLocked } from '../utils.ts';
 import { 
   Unlock, 
   Lock, 
@@ -30,11 +30,13 @@ interface AdminPageProps {
   onUpdateUsers: (users: User[]) => void;
   games: Game[];
   year: number;
+  gameSettings: GameSettings;
+  onUpdateSettings: (settings: GameSettings) => void;
 }
 
 type TabType = 'users' | 'games' | 'stats' | 'system';
 
-const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year, gameSettings, onUpdateSettings }) => {
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [selectedUserId, setSelectedUserId] = useState<string>(users.length > 0 ? users[0].id : '');
   const [newUserName, setNewUserName] = useState('');
@@ -46,6 +48,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
   const [reminderResult, setReminderResult] = useState<{success: boolean, message: string} | null>(null);
+  const [lockRound, setLockRound] = useState<number>(games.find(g => g.complete < 100)?.round || 1);
   
 
   const handleOverrideTip = (team: string) => {
@@ -80,9 +83,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
     onUpdateUsers(newUsers);
   };
 
-  const targetUser = users.find(u => u.id === selectedUserId);
-
   const toggleGameLock = (gameId: number) => {
+    const targetUser = users.find(u => u.id === selectedUserId);
     if (!targetUser) return;
 
     const newUsers = users.map(u => {
@@ -100,6 +102,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
     });
 
     onUpdateUsers(newUsers);
+  };
+
+  const toggleGlobalLock = (gameId: number, status: 'locked' | 'unlocked' | 'default') => {
+    const newSettings: GameSettings = {
+      ...gameSettings,
+      manualLocks: {
+        ...gameSettings.manualLocks,
+        [gameId]: status
+      }
+    };
+    onUpdateSettings(newSettings);
   };
 
   const handleAddUser = () => {
@@ -469,6 +482,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                       ))}
                     </div>
                   </div>
+
+                  {selectedUserId && (
+                    <div className="space-y-3 pt-4">
+                      <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] px-1">Individual Bypass (Round {lockRound})</label>
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                        {games.filter(g => g.round === lockRound).map(g => {
+                          const isUnlocked = users.find(u => u.id === selectedUserId)?.unlockedGames[g.id];
+                          return (
+                            <button
+                              key={g.id}
+                              onClick={() => toggleGameLock(g.id)}
+                              className={`w-full flex items-center justify-between p-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${
+                                isUnlocked 
+                                ? 'bg-emerald-500 border-emerald-500 text-white' 
+                                : 'bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-white/5 text-slate-400'
+                              }`}
+                            >
+                              <span className="truncate mr-2">{g.hteam} v {g.ateam}</span>
+                              {isUnlocked ? <Unlock size={12} /> : <Lock size={12} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-500/10 border-l-8 border-amber-400 p-6 rounded-r-3xl">
@@ -556,51 +594,71 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
             <div className="md:col-span-7">
               <div className="bg-white dark:bg-slate-800/50 p-10 rounded-[3rem] border-2 border-slate-100 dark:border-white/10 shadow-sm min-h-[500px] flex flex-col">
                 <div className="flex items-center justify-between border-b-2 border-slate-50 pb-8 mb-8">
-                   <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-3 uppercase italic text-base tracking-tight">
-                    <Lock size={22} className="text-slate-300 dark:text-slate-500" />
-                    Locked Matchups
-                  </h3>
-                  <div className="bg-blue-600 text-white px-5 py-2 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-100 dark:shadow-blue-900/50">
-                    Season {year}
-                  </div>
+                   <div className="space-y-1">
+                    <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-3 uppercase italic text-base tracking-tight">
+                      <Lock size={22} className="text-slate-300 dark:text-slate-500" />
+                      Global Game Locks
+                    </h3>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Override kickoff deadlines</p>
+                   </div>
+                  <select 
+                    value={lockRound} 
+                    onChange={(e) => setLockRound(parseInt(e.target.value))}
+                    className="bg-blue-600 text-white px-5 py-2 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-100 dark:shadow-blue-900/50 outline-none"
+                  >
+                    {Array.from(new Set(games.map(g => g.round))).map(r => <option key={r} value={r}>Round {r}</option>)}
+                  </select>
                 </div>
 
-                <div className="flex-grow space-y-4 overflow-y-auto max-h-[600px] pr-3 scrollbar-hide">
-                  {upcomingGames.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-16 space-y-6">
-                      <div className="w-24 h-24 bg-slate-50 dark:bg-slate-700 rounded-[2.5rem] flex items-center justify-center border-2 border-slate-100 dark:border-white/10">
-                        <Check className="text-slate-200 dark:text-slate-600" size={48} />
-                      </div>
-                      <p className="text-slate-300 dark:text-slate-500 font-black uppercase text-xs tracking-[0.2em]">All stadium gates are currently open.</p>
-                    </div>
-                  ) : (
-                    upcomingGames.map(game => (
-                      <div key={game.id} className="group flex items-center justify-between p-6 rounded-[2rem] border-2 border-slate-50 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-2xl hover:shadow-slate-200 dark:hover:shadow-none transition-all duration-500">
-                        <div className="flex items-center gap-5">
-                          <div className="bg-slate-900 dark:bg-slate-700 p-3 rounded-2xl shadow-xl group-hover:rotate-6 transition-transform">
-                             <div className="flex flex-col items-center justify-center w-8 h-8 font-black text-[11px] text-blue-400">
-                                R{game.round}
-                             </div>
+                <div className="flex-grow space-y-4 overflow-y-auto max-h-[600px] pr-3 custom-scrollbar">
+                  {games.filter(g => g.round === lockRound).map(game => {
+                    const currentStatus = gameSettings.manualLocks[game.id] || 'default';
+                    const isActuallyLocked = isGameLocked(game, users[0], gameSettings); // Just a reference check
+
+                    return (
+                      <div key={game.id} className="group flex flex-col p-6 rounded-[2rem] border-2 border-slate-50 dark:border-white/5 bg-slate-50/50 dark:bg-slate-900/30 hover:bg-white dark:hover:bg-slate-800 hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-2xl hover:shadow-slate-200 dark:hover:shadow-none transition-all duration-500 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-5">
+                            <div className="bg-slate-900 dark:bg-slate-700 p-3 rounded-2xl shadow-xl group-hover:rotate-6 transition-transform">
+                               <div className="flex flex-col items-center justify-center w-8 h-8 font-black text-[11px] text-blue-400">
+                                  {game.hteam[0]}{game.ateam[0]}
+                               </div>
+                            </div>
+                            <div>
+                              <div className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight italic">{game.hteam} <span className="text-slate-300 dark:text-slate-500">vs</span> {game.ateam}</div>
+                              <div className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest mt-1">
+                                {formatAFLDate(game.date, { weekday: 'short', day: 'numeric', month: 'short' })} @ {formatAFLDate(game.date, { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight italic">{game.hteam} <span className="text-slate-300 dark:text-slate-500">vs</span> {game.ateam}</div>
-                            <div className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-widest mt-1">{formatAFLDate(game.date, { weekday: 'short', day: 'numeric', month: 'short' })} (AWST)</div>
+                          <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${isActuallyLocked ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            {isActuallyLocked ? 'Currently Locked' : 'Currently Open'}
                           </div>
                         </div>
-                        <button 
-                          onClick={() => toggleGameLock(game.id)}
-                          className={`flex items-center gap-3 px-6 py-3 rounded-[1.5rem] transition-all font-black text-[10px] uppercase tracking-[0.2em] shadow-lg ${
-                            targetUser?.unlockedGames[game.id] 
-                            ? 'bg-emerald-500 text-white shadow-emerald-100 dark:shadow-emerald-900/50' 
-                            : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border-2 border-slate-100 dark:border-white/10 hover:border-blue-300 dark:hover:border-blue-500'
-                          }`}
-                        >
-                          {targetUser?.unlockedGames[game.id] ? <Unlock size={16} /> : <Lock size={16} />}
-                          {targetUser?.unlockedGames[game.id] ? 'Unlocked' : 'Override'}
-                        </button>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <button 
+                            onClick={() => toggleGlobalLock(game.id, 'default')}
+                            className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${currentStatus === 'default' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200'}`}
+                          >
+                            Auto (Time)
+                          </button>
+                          <button 
+                            onClick={() => toggleGlobalLock(game.id, 'locked')}
+                            className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${currentStatus === 'locked' ? 'bg-rose-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200'}`}
+                          >
+                            Force Lock
+                          </button>
+                          <button 
+                            onClick={() => toggleGlobalLock(game.id, 'unlocked')}
+                            className={`py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${currentStatus === 'unlocked' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 hover:bg-slate-200'}`}
+                          >
+                            Force Open
+                          </button>
+                        </div>
                       </div>
-                    ))
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -727,6 +785,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
 
         
       </div>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #334155;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
     </div>
   );
 };
