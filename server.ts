@@ -9,6 +9,13 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Allow framing for WordPress embedding
+  app.use((req, res, next) => {
+    res.removeHeader("X-Frame-Options");
+    res.setHeader("Content-Security-Policy", "frame-ancestors *");
+    next();
+  });
+
   // Proxy for Squiggle API to avoid CORS and "Failed to fetch" issues in browser
   app.get("/api/squiggle/games", async (req, res) => {
     const { year } = req.query;

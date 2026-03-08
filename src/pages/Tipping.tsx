@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Game, User, Tip, GameSettings } from '../types.ts';
 import { isGameLocked, getTeamLogoUrl, getTeamColors, cleanTeamName, isLocalMode, formatAFLDate } from '../utils.ts';
-import { Lock, Unlock, CheckCircle, Trophy, HelpCircle, Star, Users, AlertCircle, Send, Save, Info, Clock, Palette, Activity, PlayCircle, ChevronRight, ChevronLeft, Plus, Minus, Dices, Sparkles, Printer } from 'lucide-react';
+import { Lock, Unlock, CheckCircle, Trophy, HelpCircle, Star, Users, AlertCircle, Send, Save, Info, Clock, Palette, Activity, PlayCircle, ChevronRight, ChevronLeft, Plus, Minus, Dices, Sparkles, Printer, ShieldCheck } from 'lucide-react';
 
 interface TippingPageProps {
   user: User;
@@ -407,27 +407,50 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
       </div>
 
       {/* Roster Progress */}
-      <div className="bg-white dark:bg-slate-800/50 border-[3px] border-slate-100 dark:border-white/10 rounded-[3rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-500" />
-        <div className="flex items-center gap-3 mb-10">
-          <Users size={24} className="text-purple-600" />
-          <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white italic">Family Participation</h3>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {roundProgress.map(p => (
-            <div key={p.id} className={`p-4 rounded-[2rem] border-2 transition-all ${p.id === user.id ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20 ring-4 ring-purple-50 dark:ring-purple-500/10' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-white/10'}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(p.name)}`} className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 shadow-sm" alt={p.name} />
-                <span className="text-[10px] font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{p.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mr-3">
-                  <div className={`h-full bg-purple-500 transition-all duration-1000`} style={{ width: `${(p.completed / p.total) * 100}%` }} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="lg:col-span-8 bg-white dark:bg-slate-800/50 border-[3px] border-slate-100 dark:border-white/10 rounded-[3rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-500" />
+          <div className="flex items-center gap-3 mb-10">
+            <Users size={24} className="text-purple-600" />
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white italic">Family Participation</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {roundProgress.map(p => (
+              <div key={p.id} className={`p-4 rounded-[2rem] border-2 transition-all ${p.id === user.id ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20 ring-4 ring-purple-50 dark:ring-purple-500/10' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-white/10'}`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(p.name)}`} className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 shadow-sm" alt={p.name} />
+                  <span className="text-[10px] font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{p.name}</span>
                 </div>
-                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">{p.completed}/{p.total}</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mr-3">
+                    <div className={`h-full bg-purple-500 transition-all duration-1000`} style={{ width: `${(p.completed / p.total) * 100}%` }} />
+                  </div>
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">{p.completed}/{p.total}</span>
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="lg:col-span-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-500/20 rounded-[3rem] p-8 flex flex-col justify-center relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity rotate-12">
+            <ShieldCheck size={120} />
+          </div>
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg">
+                <Info size={20} />
+              </div>
+              <h3 className="text-sm font-black uppercase tracking-widest text-amber-900 dark:text-amber-200 italic">League Rule #1</h3>
             </div>
-          ))}
+            <p className="text-xs font-bold text-amber-800 dark:text-amber-300 leading-relaxed uppercase tracking-tight">
+              Forgot to tip? Don't stress! <br />
+              <span className="text-amber-600 dark:text-amber-400">Away Teams</span> are automatically awarded to players who miss a kickoff.
+            </p>
+            <div className="pt-2">
+              <span className="inline-block px-3 py-1 bg-amber-200 dark:bg-amber-500/30 rounded-lg text-[9px] font-black text-amber-900 dark:text-amber-100 uppercase tracking-widest">Automatic Fallback Active</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -520,6 +543,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
                     currentUser={user}
                     align="right"
                     disabled={locked}
+                    isFallback={isFallback}
                     onClick={() => handleTipClick(game.id, game.ateam)}
                   />
                 </div>
@@ -578,8 +602,9 @@ const MatchTeam: React.FC<{
   currentUser: User,
   align: 'left' | 'right',
   disabled: boolean,
+  isFallback?: boolean,
   onClick: () => void 
-}> = ({ name, score, isSelected, isWinner, percent, tippedUsers, currentUser, align, disabled, onClick }) => {
+}> = ({ name, score, isSelected, isWinner, percent, tippedUsers, currentUser, align, disabled, isFallback, onClick }) => {
   const colors = getTeamColors(name);
   const clean = cleanTeamName(name);
 
@@ -633,7 +658,15 @@ const MatchTeam: React.FC<{
       </div>
 
       <div className="flex-1 min-w-0">
-        <h4 className="text-lg font-heading font-black uppercase italic tracking-tighter truncate leading-none mb-1">{clean}</h4>
+        <div className="flex items-center gap-2 mb-1">
+          <h4 className="text-lg font-heading font-black uppercase italic tracking-tighter truncate leading-none">{clean}</h4>
+          {isFallback && isSelected && (
+            <div className="px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 rounded-md flex items-center gap-1">
+              <ShieldCheck size={10} className="text-amber-600 dark:text-amber-400" />
+              <span className="text-[8px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest">Fallback</span>
+            </div>
+          )}
+        </div>
         {score !== null ? (
           <p className="text-3xl font-heading font-black">{score}</p>
         ) : (

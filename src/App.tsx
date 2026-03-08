@@ -31,6 +31,7 @@ import ReportsPage from './pages/Reports.tsx';
 import ProfilePage from './pages/Profile.tsx';
 import DashboardPage from './pages/Dashboard.tsx';
 import BanterPage from './pages/Banter.tsx';
+import LoginPage from './pages/Login.tsx';
 
 const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -49,11 +50,31 @@ const App: React.FC = () => {
       const data = await loadUsersFromDB();
       const session = loadSession();
       const settings = await loadGameSettings();
-      setUsers(data);
+      
+      // Migration: Ensure all users have usernames and reset admin if requested
+      const updatedData = data.map(u => {
+        // Force reset admin as requested
+        if (u.id === 'adrian') {
+          return { ...u, username: 'admin', password: 'password2026' };
+        }
+        // Ensure other users have default credentials if missing (for legacy data)
+        if (!u.username) {
+          return { ...u, username: u.id, password: 'password123' };
+        }
+        return u;
+      });
+      
+      if (JSON.stringify(data) !== JSON.stringify(updatedData)) {
+        await saveAllUsersToDB(updatedData);
+        setUsers(updatedData);
+      } else {
+        setUsers(data);
+      }
+
       setGameSettings(settings);
       
       if (session.userId) {
-        const found = data.find(u => u.id === session.userId);
+        const found = updatedData.find(u => u.id === session.userId);
         if (found) setCurrentUser(found);
       }
       const gameData = await fetchGames(2026);
@@ -115,63 +136,7 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return (
-      <div className="h-screen w-screen bg-white dark:bg-slate-950 flex flex-col overflow-hidden relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-blue-600/20 via-white to-white dark:from-blue-600/20 dark:via-slate-950 dark:to-slate-950" />
-        <div className="h-12 bg-slate-100/40 dark:bg-black/40 border-b border-slate-200 dark:border-white/5 flex items-center justify-between px-6 shrink-0 z-10 backdrop-blur-md">
-           <div className="flex items-center gap-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]" />
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)]" />
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
-           </div>
-           <span className="text-[10px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest italic">AFL Family Tipping • 2026 Edition</span>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center p-8 relative z-10">
-          <div className="max-w-5xl w-full space-y-16">
-            <div className="text-center space-y-6">
-              <div className="inline-flex items-center justify-center w-28 h-28 rounded-[2.5rem] bg-blue-600 shadow-[0_0_60px_rgba(37,99,235,0.3)] mb-4 rotate-6 border-4 border-white/10 animate-float">
-                <Trophy className="text-white" size={56} />
-              </div>
-              <h1 className="text-6xl md:text-9xl font-heading font-black text-slate-900 dark:text-white tracking-tighter uppercase italic leading-[0.85]">
-                ADRIAN'S <span className="text-blue-500 block md:inline">FAMILY</span>
-              </h1>
-              <p className="text-slate-500 dark:text-slate-500 font-black uppercase tracking-[0.8em] text-xs italic">Select Your Profile to Enter</p>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-              {users.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => setCurrentUser(user)}
-                  className="group relative bg-slate-100 dark:bg-white/5 border-2 border-slate-200 dark:border-white/5 p-8 rounded-[3.5rem] transition-all hover:bg-slate-200 dark:hover:bg-white/10 hover:scale-105 hover:border-blue-500/50 shadow-2xl"
-                >
-                  <div className="flex flex-col items-center gap-6">
-                    <div className="relative">
-                      <div className="absolute -inset-2 bg-blue-600 rounded-full blur-2xl opacity-0 group-hover:opacity-40 transition-opacity" />
-                      <img 
-                        src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(user.name)}`} 
-                        alt={user.name} 
-                        className="w-24 h-24 rounded-full border-4 border-white/5 group-hover:border-blue-500 transition-all duration-500 bg-slate-800 relative z-10"
-                      />
-                    </div>
-                    <div className="text-center space-y-1">
-                      <h3 className="text-xl font-heading font-black text-slate-900 dark:text-white group-hover:text-blue-400 transition-colors uppercase italic tracking-tight">{user.name}</h3>
-                      {user.isAdmin && (
-                        <div className="flex items-center justify-center gap-1.5 text-blue-500">
-                          <ShieldCheck size={14} />
-                          <span className="text-[9px] font-black uppercase tracking-widest">League Admin</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoginPage users={users} onLogin={setCurrentUser} />;
   }
 
   return (
@@ -211,7 +176,7 @@ const App: React.FC = () => {
         <div className="flex-1 flex overflow-hidden">
           {/* Sidebar */}
           <nav className="w-80 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-white/5 flex flex-col shrink-0 backdrop-blur-3xl print:hidden">
-            <div className="p-10">
+            <div className="p-10 space-y-4">
               <div className="flex items-center gap-4 p-5 rounded-[2rem] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-2xl">
                 <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/10" style={{ backgroundColor: teamColors.primary, boxShadow: `0 10px 20px ${teamColors.primary}40` }}>
                   <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(currentUser.name)}`} alt={currentUser.name} className="w-full h-full object-cover" />
@@ -221,6 +186,25 @@ const App: React.FC = () => {
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] mt-0.5" style={{ color: teamColors.secondary }}>Arena Legend</p>
                 </div>
               </div>
+
+              {/* Admin User Switcher */}
+              {users.find(u => u.id === loadSession().userId)?.isAdmin && (
+                <div className="px-2">
+                  <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-2 px-1">Admin: Act As User</label>
+                  <select 
+                    value={currentUser.id}
+                    onChange={(e) => {
+                      const selected = users.find(u => u.id === e.target.value);
+                      if (selected) setCurrentUser(selected);
+                    }}
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none focus:border-blue-500 transition-all"
+                  >
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name} {u.isAdmin ? '(Admin)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 px-6 space-y-2">
@@ -248,7 +232,7 @@ const App: React.FC = () => {
           </nav>
 
           {/* Main Content Area */}
-          <main className="flex-1 bg-slate-50 dark:bg-slate-900 overflow-y-auto relative text-slate-900 dark:text-slate-300 print:overflow-visible print:bg-white">
+          <main className="flex-1 bg-slate-50 dark:bg-slate-900 overflow-y-auto relative text-slate-900 dark:text-slate-300 print:overflow-visible print:bg-white custom-scrollbar">
             <div className="p-12 md:p-16 print:p-0">
               <AnimatePresence mode="wait">
                 <motion.div

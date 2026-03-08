@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { User, Game, UserTips, Tip } from '../types';
-import { User as UserIcon, Save, BarChart2, History } from 'lucide-react';
+import { User as UserIcon, Save, BarChart2, History, Lock } from 'lucide-react';
 
 interface ProfilePageProps {
   user: User;
@@ -13,6 +13,8 @@ interface ProfilePageProps {
 const ProfilePage: React.FC<ProfilePageProps> = ({ user, users, onUpdateUsers, games, year }) => {
   const [name, setName] = useState(user.name);
   const [favoriteTeam, setFavoriteTeam] = useState(user.favoriteTeam || '');
+  const [password, setPassword] = useState(user.password || '');
+  const [showPassword, setShowPassword] = useState(false);
 
   const teams = [
     "Adelaide", "Brisbane", "Carlton", "Collingwood", "Essendon", "Fremantle", 
@@ -85,7 +87,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, users, onUpdateUsers, g
       return;
     }
     const updatedUsers = users.map(u => 
-      u.id === user.id ? { ...u, name: name.trim(), favoriteTeam } : u
+      u.id === user.id ? { ...u, name: name.trim(), favoriteTeam, password: password.trim() } : u
     );
     onUpdateUsers(updatedUsers);
     alert('Profile updated successfully!');
@@ -130,6 +132,23 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, users, onUpdateUsers, g
                   <option key={team} value={team}>{team}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">Security Password</label>
+              <div className="relative mt-2">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner text-slate-900 dark:text-white"
+                />
+                <button 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-500 transition-colors"
+                >
+                  <Lock size={18} />
+                </button>
+              </div>
             </div>
             <button 
               onClick={handleSaveChanges}

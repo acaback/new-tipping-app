@@ -98,10 +98,10 @@ export const saveGameSettings = async (settings: GameSettings) => {
 
 export const getInitialUsers = (): User[] => {
   const initialUsers = [
-    { id: 'adrian', name: 'Adrian', email: 'adrian@example.com', isAdmin: true, tips: {}, unlockedGames: {} },
-    { id: 'mum', name: 'Mum', email: 'mum@example.com', isAdmin: false, tips: {}, unlockedGames: {} },
-    { id: 'dad', name: 'Dad', email: 'dad@example.com', isAdmin: false, tips: {}, unlockedGames: {} },
-    { id: 'buddy', name: 'Buddy', email: 'buddy@example.com', isAdmin: false, tips: {}, unlockedGames: {} },
+    { id: 'adrian', username: 'admin', password: 'password2026', name: 'Adrian', email: 'adrian@example.com', isAdmin: true, tips: {}, unlockedGames: {} },
+    { id: 'mum', username: 'mum', password: 'password123', name: 'Mum', email: 'mum@example.com', isAdmin: false, tips: {}, unlockedGames: {} },
+    { id: 'dad', username: 'dad', password: 'password123', name: 'Dad', email: 'dad@example.com', isAdmin: false, tips: {}, unlockedGames: {} },
+    { id: 'buddy', username: 'buddy', password: 'password123', name: 'Buddy', email: 'buddy@example.com', isAdmin: false, tips: {}, unlockedGames: {} },
   ];
   // Fire and forget save
   saveAllUsersToDB(initialUsers).catch(console.error);

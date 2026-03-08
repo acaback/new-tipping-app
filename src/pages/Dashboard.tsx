@@ -13,7 +13,8 @@ import {
   Star, 
   Activity,
   Target,
-  Award
+  Award,
+  ShieldCheck
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -197,8 +198,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
                 <span className="text-[9px] font-black uppercase tracking-widest text-amber-600">System Banter</span>
               </div>
             </div>
-            <div className="flex items-center justify-center h-20 border-2 border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No recent messages</p>
+            <div className="p-5 bg-blue-50 dark:bg-blue-500/5 rounded-2xl border border-blue-100 dark:border-blue-500/10">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck size={14} className="text-blue-600" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">League Rule</span>
+              </div>
+              <p className="text-[10px] font-bold text-blue-900 dark:text-blue-200 leading-relaxed uppercase tracking-tight">
+                Missed a tip? You'll automatically get the <span className="text-blue-600 dark:text-blue-400">Away Team</span> for that match.
+              </p>
             </div>
           </div>
         </div>

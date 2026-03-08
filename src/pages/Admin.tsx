@@ -40,6 +40,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [selectedUserId, setSelectedUserId] = useState<string>(users.length > 0 ? users[0].id : '');
   const [newUserName, setNewUserName] = useState('');
+  const [newUserUsername, setNewUserUsername] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('password123');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmClearTipsId, setConfirmClearTipsId] = useState<string | null>(null);
   const [overrideUser, setOverrideUser] = useState<string>(users.length > 0 ? users[0].id : '');
@@ -116,9 +118,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
   };
 
   const handleAddUser = () => {
-    if (!newUserName.trim()) return;
+    if (!newUserName.trim() || !newUserUsername.trim()) return;
     const newUser: User = {
       id: Math.random().toString(36).substr(2, 9),
+      username: newUserUsername.toLowerCase().trim(),
+      password: newUserPassword,
       name: newUserName,
       email: '',
       isAdmin: false,
@@ -127,6 +131,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
     };
     onUpdateUsers([...users, newUser]);
     setNewUserName('');
+    setNewUserUsername('');
+    setNewUserPassword('password123');
   };
 
   const handleClearTips = (id: string) => {
@@ -286,6 +292,26 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                       onChange={(e) => setNewUserName(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">Username</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. unclejohn" 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner text-slate-900 dark:text-white"
+                      value={newUserUsername}
+                      onChange={(e) => setNewUserUsername(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">Initial Password</label>
+                    <input 
+                      type="text" 
+                      placeholder="password123" 
+                      className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner text-slate-900 dark:text-white"
+                      value={newUserPassword}
+                      onChange={(e) => setNewUserPassword(e.target.value)}
+                    />
+                  </div>
                   <button 
                     onClick={handleAddUser}
                     className="w-full bg-slate-900 dark:bg-blue-600 text-white py-5 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] hover:bg-blue-600 dark:hover:bg-blue-500 active:scale-95 transition-all shadow-2xl shadow-slate-200 dark:shadow-blue-900/50 flex items-center justify-center gap-3 group"
@@ -423,20 +449,41 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                           </div>
                         </div>
                         {isEditing && (
-                          <div className="mt-4 space-y-2 animate-in fade-in duration-300">
-                            <input 
-                              type="text" 
-                              value={editingUser.name}
-                              onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                              className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-black outline-none focus:border-blue-500"
-                            />
-                            <div className="flex justify-end gap-2">
-                              <button onClick={() => setEditingUser(null)} className="px-3 py-1 text-xs font-bold text-slate-500">Cancel</button>
+                          <div className="mt-4 space-y-4 animate-in fade-in duration-300 p-4 bg-white dark:bg-slate-800 rounded-2xl border-2 border-blue-500/20 shadow-xl">
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Name</label>
+                              <input 
+                                type="text" 
+                                value={editingUser.name}
+                                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</label>
+                              <input 
+                                type="text" 
+                                value={editingUser.username || ''}
+                                onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                              <input 
+                                type="text" 
+                                value={editingUser.password || ''}
+                                onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-2">
+                              <button onClick={() => setEditingUser(null)} className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-700">Cancel</button>
                               <button onClick={() => {
                                 const newUsers = users.map(user => user.id === editingUser.id ? editingUser : user);
                                 onUpdateUsers(newUsers);
                                 setEditingUser(null);
-                              }} className="px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded-lg">Save</button>
+                              }} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-white bg-blue-600 rounded-xl shadow-lg shadow-blue-200 dark:shadow-blue-900/50">Save Changes</button>
                             </div>
                           </div>
                         )}
@@ -785,24 +832,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
 
         
       </div>
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-        }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #334155;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-      `}</style>
     </div>
   );
 };
