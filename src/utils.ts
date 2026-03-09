@@ -212,15 +212,31 @@ export const isGameLocked = (game: Game, user: User, settings?: GameSettings) =>
   if (user.unlockedGames[game.id]) return false;
 
   // 3. Default time-based logic
-  return new Date() > new Date(game.date.includes('+') || game.date.includes('Z') ? game.date : game.date.replace(' ', 'T') + '+10:00');
+  const dateWithoutOffset = game.date.replace(' ', 'T');
+  const tempDate = new Date(dateWithoutOffset);
+  const month = tempDate.getMonth(); // 0-11
+  // DST in Australia: Oct (9) to April (3). 
+  // AFL season is mostly Mar-Sept. Mar/Apr and Oct are transition months.
+  // For simplicity and 99% accuracy for AFL:
+  const isDST = month >= 9 || month <= 3; 
+  const offset = isDST ? '+11:00' : '+10:00';
+  
+  const gameDate = new Date(game.date.includes('+') || game.date.includes('Z') ? game.date : dateWithoutOffset + offset);
+  return new Date() > gameDate;
 };
 
 export const formatAFLDate = (dateStr: string, options: Intl.DateTimeFormatOptions = {}) => {
-  // Squiggle 'date' is in AEST/AEDT. If no offset, assume AEST (+10:00)
-  const normalized = dateStr.includes('+') || dateStr.includes('Z') ? dateStr : dateStr.replace(' ', 'T') + '+10:00';
+  // Squiggle 'date' is in AEST/AEDT. 
+  const dateWithoutOffset = dateStr.replace(' ', 'T');
+  const tempDate = new Date(dateWithoutOffset);
+  const month = tempDate.getMonth();
+  const isDST = month >= 9 || month <= 3;
+  const offset = isDST ? '+11:00' : '+10:00';
+
+  const normalized = dateStr.includes('+') || dateStr.includes('Z') ? dateStr : dateWithoutOffset + offset;
   return new Date(normalized).toLocaleString('en-AU', {
     ...options,
-    timeZone: 'Australia/Perth'
+    // Removed fixed Perth timezone to respect user's local time
   });
 };
 
