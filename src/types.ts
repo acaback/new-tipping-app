@@ -30,6 +30,7 @@ export interface User {
   password?: string;
   name: string;
   email?: string;
+  avatar?: string;
   favoriteTeam?: string;
   isAdmin: boolean;
   tips: {
@@ -65,4 +66,5 @@ export interface AFLLadderEntry {
   draws: number;
   percentage: number;
   points: number;
+  logo?: string;
 }

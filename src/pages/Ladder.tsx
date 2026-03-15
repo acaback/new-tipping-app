@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Game, User, AFLLadderEntry, LadderEntry } from '../types';
-import { generateLadder, fetchAFLLadder, getTeamLogoUrl, cleanTeamName } from '../utils';
+import { generateLadder, fetchAFLLadder, getTeamLogoUrl, cleanTeamName, getTeamColors, calculateAFLLadder } from '../utils';
 import { Trophy, Medal, MinusCircle, Info, ChevronUp, ChevronDown, Users, BarChart2, ArrowUpDown } from 'lucide-react';
 
 interface LadderPageProps {
@@ -16,6 +16,8 @@ type AFLSortKey = 'rank' | 'name' | 'wins' | 'losses' | 'draws' | 'percentage' |
 const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
   const [activeTab, setActiveTab] = useState('family');
   const [aflLadder, setAflLadder] = useState<AFLLadderEntry[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   // Sorting state
   const [familySort, setFamilySort] = useState<{ key: FamilySortKey; direction: 'asc' | 'desc' }>({ key: 'rank', direction: 'asc' });
@@ -46,32 +48,61 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
 
   const sortedAFLLadder = useMemo(() => {
     const sorted = [...aflLadder];
-    if (aflSort.key === 'rank' && aflSort.direction === 'asc') return sorted;
-
+    
     return sorted.sort((a, b) => {
-      const aValue = a[aflSort.key as keyof typeof a];
-      const bValue = b[aflSort.key as keyof typeof b];
+      const aValue = a[aflSort.key];
+      const bValue = b[aflSort.key];
+
+      if (aValue === undefined || bValue === undefined) return 0;
 
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return aflSort.direction === 'asc' 
-          ? aValue.localeCompare(bValue) 
-          : bValue.localeCompare(aValue);
+        const comparison = aValue.localeCompare(bValue);
+        return aflSort.direction === 'asc' ? comparison : -comparison;
       }
 
-      return aflSort.direction === 'asc' 
-        ? (aValue as number) - (bValue as number) 
-        : (bValue as number) - (aValue as number);
+      const numA = Number(aValue);
+      const numB = Number(bValue);
+      
+      if (aflSort.direction === 'asc') {
+        return numA - numB;
+      } else {
+        return numB - numA;
+      }
     });
   }, [aflLadder, aflSort]);
 
   const completedGames = games.filter(g => g.complete === 100);
 
+  const loadAFLLadder = async (silent = false) => {
+    if (!silent) setIsRefreshing(true);
+    
+    // First, calculate from local games to ensure immediate update including Opening Round
+    const calculated = calculateAFLLadder(games);
+    
+    // Then, try to fetch official ladder for comparison or as fallback
+    const official = await fetchAFLLadder(year);
+    
+    // If official ladder has data, use it (it might have more accurate tie-breakers)
+    // Otherwise use our calculated one
+    if (official && official.length > 0) {
+      setAflLadder(official);
+    } else {
+      setAflLadder(calculated);
+    }
+    
+    setLastUpdated(new Date());
+    if (!silent) setIsRefreshing(false);
+  };
+
   useEffect(() => {
-    const loadAFLLadder = async () => {
-      const data = await fetchAFLLadder(year);
-      setAflLadder(data);
-    };
     loadAFLLadder();
+    
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => {
+      loadAFLLadder(true);
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
   }, [year]);
 
   const toggleFamilySort = (key: FamilySortKey) => {
@@ -104,8 +135,14 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
           <button onClick={() => setActiveTab('family')} className={`flex items-center gap-2 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all ${activeTab === 'family' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-500'}`}>
             <Users size={16} /> Family Rankings
           </button>
-          <button onClick={() => setActiveTab('afl')} className={`flex items-center gap-2 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all ${activeTab === 'afl' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-500'}`}>
+          <button onClick={() => setActiveTab('afl')} className={`flex items-center gap-2 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all relative ${activeTab === 'afl' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-500'}`}>
             <BarChart2 size={16} /> Live AFL Ladder
+            {activeTab === 'afl' && (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+              </span>
+            )}
           </button>
         </div>
         <div className="bg-white dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/10 rounded-[1.5rem] px-8 py-4 text-right shadow-sm flex items-center gap-6">
@@ -147,7 +184,7 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
                   {sortedFamilyLadder.map((entry, idx) => {
                     const rank = entry.rank;
                     return (
-                      <tr key={`family-${entry.userId || idx}`} className={`group transition-all duration-300 hover:bg-blue-50/30 dark:hover:bg-blue-500/10 ${idx === 0 ? 'bg-gradient-to-r from-yellow-50/30 to-transparent dark:from-yellow-500/10 dark:to-transparent' : ''}`}>
+                      <tr key={`family-${entry.userId}-${idx}`} className={`group transition-all duration-300 hover:bg-blue-50/30 dark:hover:bg-blue-500/10 ${idx === 0 ? 'bg-gradient-to-r from-yellow-50/30 to-transparent dark:from-yellow-500/10 dark:to-transparent' : ''}`}>
                         <td className="px-8 py-6">
                           <div className={`flex items-center justify-center w-10 h-10 rounded-2xl font-black text-base relative ${rank === 1 ? 'bg-yellow-400 text-yellow-950 shadow-lg shadow-yellow-100 dark:shadow-yellow-900/50 rotate-6' : rank === 2 ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rotate-3' : rank === 3 ? 'bg-amber-100 dark:bg-amber-800 text-amber-700 dark:text-amber-300 rotate-2' : 'bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-500'}`}>
                             {rank}
@@ -158,13 +195,23 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
                             <div className="relative">
                               <div className={`absolute -inset-1 rounded-full blur-sm opacity-30 ${rank === 1 ? 'bg-yellow-400' : 'bg-blue-400'}`} />
                               <div className="relative w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-700 border-2 border-slate-100 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-lg group-hover:scale-110 transition-transform">
-                              <img 
-                                src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(entry.userName)}`} 
-                                alt={entry.userName} 
-                                className="w-full h-full object-cover" 
-                                referrerPolicy="no-referrer"
-                              />
+                                <img 
+                                  src={users.find(u => u.id === entry.userId)?.avatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(entry.userName)}`} 
+                                  alt={entry.userName} 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer"
+                                />
                               </div>
+                              {users.find(u => u.id === entry.userId)?.favoriteTeam && (
+                                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white dark:bg-slate-800 rounded-lg p-1 shadow-lg border border-slate-100 dark:border-white/10 z-10">
+                                  <img 
+                                    src={getTeamLogoUrl(users.find(u => u.id === entry.userId)!.favoriteTeam!)} 
+                                    alt="Fav Team" 
+                                    className="w-full h-full object-contain"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              )}
                             </div>
                             <div className="flex flex-col">
                               <span className={`font-black text-base uppercase tracking-tight italic ${rank === 1 ? 'text-blue-900 dark:text-blue-300' : 'text-slate-800 dark:text-white'}`}>{entry.userName}</span>
@@ -189,6 +236,22 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'afl' && (
+          <div className="flex items-center justify-between px-8 mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isRefreshing ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {isRefreshing ? 'Syncing Live Data...' : 'System Online'}
+              </span>
+            </div>
+            {lastUpdated && (
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
+                Last Sync: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </div>
         )}
 
@@ -222,34 +285,60 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-slate-50 dark:divide-white/5">
-                  {sortedAFLLadder.map((team, idx) => (
-                    <tr key={`afl-${team.id || idx}`} className="group transition-all duration-300 hover:bg-blue-50/30 dark:hover:bg-blue-500/10">
-                      <td className="px-8 py-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-2xl font-black text-base bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-500">{team.rank}</div>
-                      </td>
-                      <td className="px-8 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 bg-white dark:bg-slate-700 p-2.5 rounded-2xl shadow-md flex items-center justify-center border-2 border-slate-50 dark:border-white/10 group-hover:scale-110 transition-transform">
-                            <img 
-                              src={getTeamLogoUrl(team.name)} 
-                              alt={team.name} 
-                              className="w-full h-full object-contain" 
-                              referrerPolicy="no-referrer"
-                            />
+                  {sortedAFLLadder.length > 0 ? (
+                    sortedAFLLadder.map((team, idx) => {
+                      const colors = getTeamColors(team.name);
+                      return (
+                        <tr 
+                          key={`afl-${team.name}-${idx}`} 
+                          className="group transition-all duration-300 hover:brightness-95 dark:hover:brightness-110 border-b border-slate-50 dark:border-white/5"
+                          style={{ backgroundColor: `${colors.primary}08` }}
+                        >
+                          <td className="px-8 py-4">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-2xl font-black text-base bg-white/50 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-white/5">{team.rank}</div>
+                          </td>
+                          <td className="px-8 py-4">
+                            <div className="flex items-center gap-4">
+                              <div 
+                                className="w-14 h-14 bg-white dark:bg-slate-700 p-2.5 rounded-2xl shadow-md flex items-center justify-center border-2 group-hover:scale-110 transition-transform"
+                                style={{ borderColor: colors.primary }}
+                              >
+                                <img 
+                                  src={team.logo || getTeamLogoUrl(team.name)} 
+                                  alt={team.name} 
+                                  className="w-full h-full object-contain" 
+                                  referrerPolicy="no-referrer"
+                                />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-black text-base uppercase tracking-tight italic text-slate-800 dark:text-white">{cleanTeamName(team.name)}</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{team.name}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.wins}</td>
+                          <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.losses}</td>
+                          <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.draws}</td>
+                          <td className="px-8 py-4 text-center text-slate-400 dark:text-slate-500 font-bold text-sm tabular-nums">{typeof team.percentage === 'number' ? team.percentage.toFixed(1) : 'N/A'}%</td>
+                          <td className="px-8 py-4 text-center text-blue-600 font-black text-2xl italic tracking-tighter tabular-nums" style={{ color: colors.primary }}>{team.points}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900/50 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-700">
+                            <BarChart2 size={32} />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="font-black text-base uppercase tracking-tight italic text-slate-800 dark:text-white">{cleanTeamName(team.name)}</span>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{team.name}</span>
+                          <div className="space-y-1">
+                            <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">No 2026 Data Yet</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">The 2026 season hasn't started. Check back after Round 1!</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.wins}</td>
-                      <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.losses}</td>
-                      <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.draws}</td>
-                      <td className="px-8 py-4 text-center text-slate-400 dark:text-slate-500 font-bold text-sm tabular-nums">{typeof team.percentage === 'number' ? team.percentage.toFixed(1) : 'N/A'}%</td>
-                      <td className="px-8 py-4 text-center text-blue-600 font-black text-2xl italic tracking-tighter tabular-nums">{team.points}</td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
             </div>

@@ -23,15 +23,13 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Game, User, GameSettings } from './types.ts';
-import { fetchGames, loadUsersFromDB, saveAllUsersToDB, saveSession, loadSession, isLocalMode, getTeamColors, loadGameSettings, saveGameSettings } from './utils.ts';
+import { fetchGames, loadUsersFromDB, saveAllUsersToDB, saveSession, loadSession, isLocalMode, getTeamColors, loadGameSettings, saveGameSettings, restoreData } from './utils.ts';
 import TippingPage from './pages/Tipping.tsx';
 import LadderPage from './pages/Ladder.tsx';
 import AdminPage from './pages/Admin.tsx';
 import ReportsPage from './pages/Reports.tsx';
-import ProfilePage from './pages/Profile.tsx';
 import DashboardPage from './pages/Dashboard.tsx';
 import BanterPage from './pages/Banter.tsx';
-import LoginPage from './pages/Login.tsx';
 
 const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -73,10 +71,16 @@ const App: React.FC = () => {
 
       setGameSettings(settings);
       
-      if (session.userId) {
-        const found = updatedData.find(u => u.id === session.userId);
-        if (found) setCurrentUser(found);
+      // Respect saved session if available
+      const savedUser = updatedData.find(u => u.id === session.userId);
+      if (savedUser) {
+        setCurrentUser(savedUser);
+      } else {
+        // Fallback to first admin
+        const adminUser = updatedData.find(u => u.isAdmin) || updatedData[0];
+        if (adminUser) setCurrentUser(adminUser);
       }
+      
       const gameData = await fetchGames(2026);
       setGames(gameData);
       setAppReady(true);
@@ -120,7 +124,26 @@ const App: React.FC = () => {
     setTimeout(() => setSaving(false), 800);
   };
 
-  if (!appReady) {
+  const handleRestoreData = async (updatedUsers: User[], updatedSettings: GameSettings) => {
+    setSaving(true);
+    try {
+      await restoreData(updatedUsers, updatedSettings);
+      setUsers(updatedUsers);
+      setGameSettings(updatedSettings);
+      // Refresh current user if they still exist in the backup
+      if (currentUser) {
+        const refreshedUser = updatedUsers.find(u => u.id === currentUser.id);
+        if (refreshedUser) setCurrentUser(refreshedUser);
+      }
+    } catch (error) {
+      console.error("Restore failed", error);
+      throw error;
+    } finally {
+      setTimeout(() => setSaving(false), 800);
+    }
+  };
+
+  if (!appReady || !currentUser) {
     return (
       <div className="h-screen w-screen bg-white dark:bg-slate-950 flex flex-col items-center justify-center space-y-8">
         <CloudLightning className="text-blue-500 animate-pulse" size={64} />
@@ -133,10 +156,6 @@ const App: React.FC = () => {
         <style>{`@keyframes loading { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }`}</style>
       </div>
     );
-  }
-
-  if (!currentUser) {
-    return <LoginPage users={users} onLogin={setCurrentUser} />;
   }
 
   return (
@@ -177,34 +196,32 @@ const App: React.FC = () => {
           {/* Sidebar */}
           <nav className="w-80 bg-slate-50 dark:bg-slate-900/50 border-r border-slate-200 dark:border-white/5 flex flex-col shrink-0 backdrop-blur-3xl print:hidden">
             <div className="p-10 space-y-4">
-              <div className="flex items-center gap-4 p-5 rounded-[2rem] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-2xl">
-                <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/10" style={{ backgroundColor: teamColors.primary, boxShadow: `0 10px 20px ${teamColors.primary}40` }}>
-                  <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(currentUser.name)}`} alt={currentUser.name} className="w-full h-full object-cover" />
+              <div className="flex items-center gap-4 p-6 rounded-[2rem] bg-blue-600 text-white shadow-2xl shadow-blue-500/20">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 overflow-hidden shrink-0">
+                  <img src={currentUser.avatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(currentUser.name)}`} alt={currentUser.name} className="w-full h-full object-cover" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-heading font-black text-slate-900 dark:text-white truncate italic uppercase tracking-tight">{currentUser.name}</p>
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] mt-0.5" style={{ color: teamColors.secondary }}>Arena Legend</p>
+                <div>
+                  <h1 className="text-xl font-heading font-black uppercase italic tracking-tighter leading-none">The War Room</h1>
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] mt-1 opacity-70">Desktop Edition</p>
                 </div>
               </div>
 
-              {/* Admin User Switcher */}
-              {users.find(u => u.id === loadSession().userId)?.isAdmin && (
-                <div className="px-2">
-                  <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-2 px-1">Admin: Act As User</label>
-                  <select 
-                    value={currentUser.id}
-                    onChange={(e) => {
-                      const selected = users.find(u => u.id === e.target.value);
-                      if (selected) setCurrentUser(selected);
-                    }}
-                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none focus:border-blue-500 transition-all"
-                  >
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.name} {u.isAdmin ? '(Admin)' : ''}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* User Switcher (Moved to a more subtle location if needed, but keeping for admin control) */}
+              <div className="px-2">
+                <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-2 px-1">Active Player Context</label>
+                <select 
+                  value={currentUser.id}
+                  onChange={(e) => {
+                    const selected = users.find(u => u.id === e.target.value);
+                    if (selected) setCurrentUser(selected);
+                  }}
+                  className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/5 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none focus:border-blue-500 transition-all"
+                >
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name} {u.isAdmin ? '(Admin)' : ''}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex-1 px-6 space-y-2">
@@ -214,19 +231,12 @@ const App: React.FC = () => {
               <DesktopNavLink to="/banter" icon={<MessageSquare size={20} />} label="Banter Board" teamColors={teamColors} />
               <DesktopNavLink to="/reports" icon={<Printer size={20} />} label="Print Results" teamColors={teamColors} />
               {currentUser.isAdmin && <DesktopNavLink to="/admin" icon={<Settings size={20} />} label="League Ops" teamColors={teamColors} />}
-              <DesktopNavLink to="/profile" icon={<UserIcon size={20} />} label="My Profile" teamColors={teamColors} />
             </div>
 
             <div className="p-8 mt-auto border-t border-white/5 bg-black/40">
-              <div className="space-y-4">
-                <div className="w-full bg-slate-100 dark:bg-slate-800/50 text-blue-400 text-[10px] font-black uppercase tracking-widest px-5 py-4 rounded-2xl border-2 border-slate-200 dark:border-white/5 shadow-inner flex items-center justify-center gap-2 italic">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                  2026 Season Active
-                </div>
-                <button onClick={() => setCurrentUser(null)} className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl text-slate-500 dark:text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-all group">
-                  <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-                  <span className="text-[10px] font-black uppercase tracking-widest italic">Exit Arena</span>
-                </button>
+              <div className="w-full bg-slate-100 dark:bg-slate-800/50 text-blue-400 text-[10px] font-black uppercase tracking-widest px-5 py-4 rounded-2xl border-2 border-slate-200 dark:border-white/5 shadow-inner flex items-center justify-center gap-2 italic">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                2026 Season Active
               </div>
             </div>
           </nav>
@@ -249,9 +259,8 @@ const App: React.FC = () => {
                     <Route path="/banter" element={<BanterPage user={currentUser} />} />
                     <Route path="/reports" element={<ReportsPage users={users} games={games} year={currentYear} />} />
                     {currentUser.isAdmin && (
-                      <Route path="/admin" element={<AdminPage users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} gameSettings={gameSettings} onUpdateSettings={handleUpdateSettings} />} />
+                      <Route path="/admin" element={<AdminPage users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} gameSettings={gameSettings} onUpdateSettings={handleUpdateSettings} onRestoreData={handleRestoreData} />} />
                     )}
-                    <Route path="/profile" element={<ProfilePage user={currentUser} users={users} onUpdateUsers={handleUpdateUsers} games={games} year={currentYear} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </motion.div>

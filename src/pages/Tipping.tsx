@@ -351,10 +351,12 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 print-hidden">
         <div className="space-y-2">
           <h2 className="text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tighter uppercase italic">
-            Enter Your <span className="text-purple-600">Tips</span>
+            Season <span className="text-purple-600">Tipping</span>
           </h2>
           <div className="flex items-center gap-3">
-            <span className="bg-slate-950 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full">Round {selectedRound}</span>
+            <span className="bg-slate-950 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full">
+              {selectedRound === 0 ? 'Opening Round' : `Round ${selectedRound}`}
+            </span>
             <span className="text-slate-400 dark:text-slate-500 font-black uppercase text-[10px] tracking-[0.4em] italic">{year} SEASON</span>
             <button 
               onClick={handleRandomize}
@@ -366,11 +368,13 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
           </div>
         </div>
         <div className="flex flex-col gap-4 min-w-[300px] bg-white dark:bg-slate-800/50 p-6 rounded-[2.5rem] border-2 border-slate-100 dark:border-white/10 shadow-xl shadow-slate-200/50 dark:shadow-none">
-          <div className="flex items-center justify-between mb-1 px-2">
-            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Round {rounds[0]}</span>
-            <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest italic">Quick Navigation</span>
-            <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Round {rounds[rounds.length - 1]}</span>
-          </div>
+                <div className="flex items-center justify-between mb-1 px-2">
+                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                    {rounds[0] === 0 ? 'Opening' : `Round ${rounds[0]}`}
+                  </span>
+                  <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest italic">Quick Navigation</span>
+                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Round {rounds[rounds.length - 1]}</span>
+                </div>
           <div className="flex items-center gap-4 px-2">
             <button 
               onClick={() => {
@@ -399,7 +403,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
                 onClick={() => setSelectedRound(r)}
                 className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-[10px] font-heading font-black transition-all snap-center ${selectedRound === r ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-purple-900/50 -rotate-3 scale-105' : 'bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-300 border border-slate-100 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500'}`}
               >
-                {r}
+                {r === 0 ? 'OR' : r}
               </button>
             ))}
           </div>

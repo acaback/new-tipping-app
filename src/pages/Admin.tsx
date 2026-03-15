@@ -20,9 +20,12 @@ import {
   Database,
   BarChart3,
   TrendingUp,
-  PieChart
+  PieChart,
+  Upload,
+  Image as ImageIcon,
+  Sparkles
 } from 'lucide-react';
-import { generateLadder, getTeamLogoUrl, cleanTeamName } from '../utils.ts';
+import { generateLadder, getTeamLogoUrl, cleanTeamName, exportData, importData } from '../utils.ts';
 
 
 interface AdminPageProps {
@@ -32,11 +35,12 @@ interface AdminPageProps {
   year: number;
   gameSettings: GameSettings;
   onUpdateSettings: (settings: GameSettings) => void;
+  onRestoreData: (users: User[], settings: GameSettings) => Promise<void>;
 }
 
 type TabType = 'users' | 'games' | 'stats' | 'system';
 
-const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year, gameSettings, onUpdateSettings }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year, gameSettings, onUpdateSettings, onRestoreData }) => {
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [selectedUserId, setSelectedUserId] = useState<string>(users.length > 0 ? users[0].id : '');
   const [newUserName, setNewUserName] = useState('');
@@ -49,9 +53,58 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
   const [overrideGame, setOverrideGame] = useState<number | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [reminderResult, setReminderResult] = useState<{success: boolean, message: string} | null>(null);
   const [lockRound, setLockRound] = useState<number>(games.find(g => g.complete < 100)?.round || 1);
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1024 * 1024) { // 1MB limit
+      alert("Image too large. Please select an image under 1MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      if (isEditing && editingUser) {
+        setEditingUser({ ...editingUser, avatar: base64String });
+      } else {
+        // We'll store the pending avatar in a state if needed, 
+        // but for now let's just use a simple approach
+        setPendingAvatar(base64String);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const [pendingAvatar, setPendingAvatar] = useState<string | undefined>(undefined);
+
+  const handleAddUser = () => {
+    if (!newUserName.trim() || !newUserUsername.trim()) return;
+    const newUser: User = {
+      id: Math.random().toString(36).substr(2, 9),
+      username: newUserUsername.toLowerCase().trim(),
+      password: newUserPassword,
+      name: newUserName,
+      email: '',
+      avatar: pendingAvatar,
+      isAdmin: false,
+      tips: {},
+      unlockedGames: {}
+    };
+    onUpdateUsers([...users, newUser]);
+    setNewUserName('');
+    setNewUserUsername('');
+    setNewUserPassword('password123');
+    setPendingAvatar(undefined);
+  };
 
   const handleOverrideTip = (team: string) => {
     if (!overrideGame) return;
@@ -115,24 +168,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
       }
     };
     onUpdateSettings(newSettings);
-  };
-
-  const handleAddUser = () => {
-    if (!newUserName.trim() || !newUserUsername.trim()) return;
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      username: newUserUsername.toLowerCase().trim(),
-      password: newUserPassword,
-      name: newUserName,
-      email: '',
-      isAdmin: false,
-      tips: {},
-      unlockedGames: {}
-    };
-    onUpdateUsers([...users, newUser]);
-    setNewUserName('');
-    setNewUserUsername('');
-    setNewUserPassword('password123');
   };
 
   const handleClearTips = (id: string) => {
@@ -282,6 +317,42 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                   <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Enroll a new family member</p>
                 </div>
                 <div className="space-y-4">
+                  <div className="flex flex-col items-center gap-4 py-2">
+                    <div className="relative group/avatar">
+                      <div className="w-24 h-24 rounded-[2rem] bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
+                        {pendingAvatar ? (
+                          <img src={pendingAvatar} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(newUserName || 'default')}`} alt="Default" className="w-full h-full object-cover opacity-50" />
+                        )}
+                      </div>
+                      <div className="absolute -bottom-2 -right-2 flex gap-1">
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-2 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-all"
+                          title="Upload Photo"
+                        >
+                          <Upload size={14} />
+                        </button>
+                        <button 
+                          onClick={() => setPendingAvatar(undefined)}
+                          className="p-2 bg-slate-800 text-white rounded-xl shadow-lg hover:bg-slate-900 transition-all"
+                          title="Use Default"
+                        >
+                          <Sparkles size={14} />
+                        </button>
+                      </div>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => handleAvatarUpload(e)}
+                      />
+                    </div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Profile Picture</p>
+                  </div>
+
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">Display Name</label>
                     <input 
@@ -289,27 +360,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                       placeholder="e.g. Uncle John" 
                       className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner text-slate-900 dark:text-white"
                       value={newUserName}
-                      onChange={(e) => setNewUserName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">Username</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. unclejohn" 
-                      className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner text-slate-900 dark:text-white"
-                      value={newUserUsername}
-                      onChange={(e) => setNewUserUsername(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-2">Initial Password</label>
-                    <input 
-                      type="text" 
-                      placeholder="password123" 
-                      className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-2xl px-5 py-4 text-sm font-black outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all shadow-inner text-slate-900 dark:text-white"
-                      value={newUserPassword}
-                      onChange={(e) => setNewUserPassword(e.target.value)}
+                      onChange={(e) => {
+                        setNewUserName(e.target.value);
+                        // Auto-generate username for internal use
+                        setNewUserUsername(e.target.value.toLowerCase().replace(/\s+/g, ''));
+                      }}
                     />
                   </div>
                   <button 
@@ -378,7 +433,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                               <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-700 border-2 border-slate-100 dark:border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-lg group-hover:rotate-3 transition-transform duration-500">
-                                <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(u.name)}`} alt={u.name} className="w-full h-full object-cover" />
+                                <img src={u.avatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(u.name)}`} alt={u.name} className="w-full h-full object-cover" />
                               </div>
                               <div className="min-w-0">
                                 <p className={`text-base font-black truncate uppercase tracking-tighter italic ${isConfirmingDelete || isConfirmingClear ? 'text-rose-900' : 'text-slate-900 dark:text-white'}`}>{u.name}</p>
@@ -450,30 +505,42 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                         </div>
                         {isEditing && (
                           <div className="mt-4 space-y-4 animate-in fade-in duration-300 p-4 bg-white dark:bg-slate-800 rounded-2xl border-2 border-blue-500/20 shadow-xl">
+                            <div className="flex flex-col items-center gap-4 py-2">
+                              <div className="relative group/avatar">
+                                <div className="w-20 h-20 rounded-[1.5rem] bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-inner">
+                                  <img src={editingUser.avatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(editingUser.name)}`} alt="Preview" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="absolute -bottom-2 -right-2 flex gap-1">
+                                  <button 
+                                    onClick={() => editFileInputRef.current?.click()}
+                                    className="p-1.5 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition-all"
+                                    title="Upload Photo"
+                                  >
+                                    <Upload size={12} />
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingUser({ ...editingUser, avatar: undefined })}
+                                    className="p-1.5 bg-slate-800 text-white rounded-lg shadow-lg hover:bg-slate-900 transition-all"
+                                    title="Use Default"
+                                  >
+                                    <Sparkles size={12} />
+                                  </button>
+                                </div>
+                                <input 
+                                  type="file" 
+                                  ref={editFileInputRef} 
+                                  className="hidden" 
+                                  accept="image/*"
+                                  onChange={(e) => handleAvatarUpload(e, true)}
+                                />
+                              </div>
+                            </div>
                             <div className="space-y-1">
                               <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Name</label>
                               <input 
                                 type="text" 
                                 value={editingUser.name}
                                 onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-blue-500"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</label>
-                              <input 
-                                type="text" 
-                                value={editingUser.username || ''}
-                                onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-blue-500"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
-                              <input 
-                                type="text" 
-                                value={editingUser.password || ''}
-                                onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
                                 className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-100 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-black outline-none focus:border-blue-500"
                               />
                             </div>
@@ -826,6 +893,81 @@ const AdminPage: React.FC<AdminPageProps> = ({ users, onUpdateUsers, games, year
                       {reminderResult.message}
                   </p>
               )}
+            </div>
+
+            <div className="bg-white dark:bg-slate-800/50 p-8 rounded-[2.5rem] border-2 border-slate-100 dark:border-white/10 shadow-sm space-y-6">
+              <div className="space-y-1">
+                <h3 className="font-black text-slate-900 dark:text-white flex items-center gap-3 uppercase italic text-sm tracking-tight">
+                  <Database size={20} className="text-blue-500" />
+                  Data Management (Backup & Restore)
+                </h3>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Download a copy of all league data or restore from a previous backup.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => exportData(users, gameSettings)}
+                  className="bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-2"
+                >
+                  <TrendingUp size={14} className="rotate-180" />
+                  Export Data
+                </button>
+                <button
+                  onClick={() => {
+                    setIsSelecting(true);
+                    importFileInputRef.current?.click();
+                    // Fallback to reset state if picker is cancelled
+                    const handleFocus = () => {
+                      window.removeEventListener('focus', handleFocus);
+                      setTimeout(() => setIsSelecting(false), 1000);
+                    };
+                    window.addEventListener('focus', handleFocus);
+                  }}
+                  disabled={isImporting || isSelecting}
+                  className="bg-blue-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-blue-900/50 disabled:opacity-50"
+                >
+                  <Upload size={14} className={isImporting || isSelecting ? 'animate-bounce' : ''} />
+                  {isImporting || isSelecting ? 'Processing...' : 'Import Data'}
+                </button>
+                <input
+                  type="file"
+                  ref={importFileInputRef}
+                  className="hidden"
+                  accept=".json"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    setIsImporting(true);
+                    try {
+                      console.log("File selected for import:", file.name);
+                      // Small delay to ensure the UI updates to "Processing..." before any blocking calls
+                      await new Promise(resolve => setTimeout(resolve, 100));
+                      
+                      const data = await importData(file);
+                      if (data) {
+                        console.log("Data parsed, asking for confirmation...");
+                        if (confirm('Are you sure you want to restore? This will overwrite all current data.')) {
+                          console.log("Confirmation received. Performing clean restore...");
+                          await onRestoreData(data.users, data.settings);
+                          console.log("Restore complete. Reloading...");
+                          alert('Data restored successfully! The page will now refresh.');
+                          window.location.reload();
+                        } else {
+                          console.log("Import cancelled by user.");
+                        }
+                      } else {
+                        alert('Failed to restore data. The backup file appears to be invalid or corrupted. Please check the console for details.');
+                      }
+                    } catch (error) {
+                      console.error("Import error in AdminPage:", error);
+                      alert('An unexpected error occurred during the import process. Check the console for details.');
+                    } finally {
+                      setIsImporting(false);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

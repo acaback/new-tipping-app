@@ -1,5 +1,5 @@
 
-import { collection, doc, getDocs, setDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, getDoc, writeBatch, getDocsFromServer, query } from 'firebase/firestore';
 import { Game, User, LadderEntry, ApplicationState, AFLLadderEntry, GameSettings } from './types.ts';
 import { db } from './firebase';
 
@@ -32,7 +32,9 @@ export const loadUsersFromDB = async (): Promise<User[]> => {
   }
 
   try {
-    const querySnapshot = await getDocs(collection(db, 'users'));
+    // Use getDocsFromServer to ensure we get the latest data from the cloud, 
+    // bypassing any local cache that might be stale after an import.
+    const querySnapshot = await getDocsFromServer(collection(db, 'users'));
     const users = querySnapshot.docs.map(doc => doc.data() as User);
     if (users.length === 0) {
       return getInitialUsers();
@@ -40,7 +42,15 @@ export const loadUsersFromDB = async (): Promise<User[]> => {
     return users;
   } catch (error) {
     console.error("Error loading users from Firestore: ", error);
-    // Fallback to local storage even if not in local mode if Firestore fails
+    // Fallback to local cache if server is unreachable
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const users = querySnapshot.docs.map(doc => doc.data() as User);
+      if (users.length > 0) return users;
+    } catch (e) {
+      console.error("Local fallback also failed", e);
+    }
+    
     const local = localStorage.getItem(USERS_STORAGE_KEY);
     if (local) return JSON.parse(local);
     return getInitialUsers();
@@ -54,11 +64,56 @@ export const saveAllUsersToDB = async (users: User[]) => {
   if (isLocalMode()) return;
 
   try {
-    for (const user of users) {
-      await setDoc(doc(db, 'users', user.id), user);
-    }
+    const batch = writeBatch(db);
+    users.forEach(user => {
+      const userRef = doc(db, 'users', user.id);
+      batch.set(userRef, user);
+    });
+    await batch.commit();
   } catch (error) {
     console.error("Error saving users to Firestore: ", error);
+    // Fallback to individual sets if batch fails
+    for (const user of users) {
+      try {
+        await setDoc(doc(db, 'users', user.id), user);
+      } catch (e) {
+        console.error(`Failed to save user ${user.id}`, e);
+      }
+    }
+  }
+};
+
+export const restoreData = async (users: User[], settings: GameSettings) => {
+  // 1. Update local storage immediately
+  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+
+  if (isLocalMode()) return;
+
+  try {
+    const batch = writeBatch(db);
+
+    // 2. Clear existing users to ensure a clean restore
+    const snapshot = await getDocsFromServer(collection(db, 'users'));
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // 3. Add new users from backup
+    users.forEach((user) => {
+      const userRef = doc(db, 'users', user.id);
+      batch.set(userRef, user);
+    });
+
+    // 4. Update settings
+    const settingsRef = doc(db, 'settings', 'global');
+    batch.set(settingsRef, settings);
+
+    await batch.commit();
+    console.log("Cloud restore completed successfully");
+  } catch (error) {
+    console.error("Error during cloud restore:", error);
+    throw error;
   }
 };
 
@@ -146,15 +201,32 @@ export const getTeamColors = (name: string) => {
 };
 
 export const getTeamLogoUrl = (name: string) => {
+  const clean = cleanTeamName(name);
   const mapping: Record<string, string> = {
-    "Adelaide": "Adelaide", "Brisbane": "Brisbane", "Carlton": "Carlton",
-    "Collingwood": "Collingwood", "Essendon": "Essendon", "Fremantle": "Fremantle", "Geelong": "Geelong",
-    "Gold Coast": "GoldCoast", "GWS": "GWS", "Hawthorn": "Hawthorn",
-    "Melbourne": "Melbourne", "North Melbourne": "NorthMelbourne", "Port Adelaide": "PortAdelaide",
-    "Richmond": "Richmond", "St Kilda": "StKilda", "Sydney": "Sydney",
-    "West Coast": "WestCoast", "Western Bulldogs": "Bulldogs"
+    "Adelaide": "ADL",
+    "Brisbane": "BRL",
+    "Carlton": "CAR",
+    "Collingwood": "COL",
+    "Essendon": "ESS",
+    "Fremantle": "FRE",
+    "Geelong": "GEE",
+    "Gold Coast": "GCS",
+    "GWS": "GWS",
+    "Hawthorn": "HAW",
+    "Melbourne": "MEL",
+    "North Melbourne": "NMFC",
+    "Port Adelaide": "PTA",
+    "Richmond": "RIC",
+    "St Kilda": "STK",
+    "Sydney": "SYD",
+    "West Coast": "WCE",
+    "Western Bulldogs": "WBD"
   };
-  return `https://squiggle.com.au/images/teams/${mapping[cleanTeamName(name)] || 'AFL'}.png`;
+  const code = mapping[clean];
+  if (code) {
+    return `https://s.afl.com.au/static-resources/aflc/static/images/logos/afl/club-logos/${code}.png`;
+  }
+  return `https://squiggle.com.au/images/teams/AFL.png`;
 };
 
 export const saveSession = (state: ApplicationState) => localStorage.setItem(SESSION_KEY, JSON.stringify(state));
@@ -240,16 +312,117 @@ export const formatAFLDate = (dateStr: string, options: Intl.DateTimeFormatOptio
   });
 };
 
+export const exportData = (users: User[], settings: GameSettings) => {
+  const data = {
+    users,
+    settings,
+    exportedAt: new Date().toISOString(),
+    version: '1.0'
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tipping_backup_${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+export const importData = async (file: File): Promise<{ users: User[], settings: GameSettings } | null> => {
+  try {
+    console.log("Starting file import for:", file.name);
+    const text = await file.text();
+    const data = JSON.parse(text);
+    
+    if (data && data.users && Array.isArray(data.users)) {
+      console.log("Import data validated successfully. Users count:", data.users.length);
+      return {
+        users: data.users,
+        settings: data.settings || { manualLocks: {} }
+      };
+    }
+    
+    console.warn("Import data validation failed: missing users array or invalid structure", data);
+    return null;
+  } catch (error) {
+    console.error("Failed to parse backup file:", error);
+    return null;
+  }
+};
+
+export const calculateAFLLadder = (games: Game[]): AFLLadderEntry[] => {
+  const teams: Record<string, { wins: number, losses: number, draws: number, for: number, against: number, name: string }> = {};
+
+  games.forEach(g => {
+    if (g.complete === 100) {
+      if (!teams[g.hteam]) teams[g.hteam] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name: g.hteam };
+      if (!teams[g.ateam]) teams[g.ateam] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name: g.ateam };
+
+      const hscore = g.hscore || 0;
+      const ascore = g.ascore || 0;
+
+      teams[g.hteam].for += hscore;
+      teams[g.hteam].against += ascore;
+      teams[g.ateam].for += ascore;
+      teams[g.ateam].against += hscore;
+
+      if (hscore > ascore) {
+        teams[g.hteam].wins++;
+        teams[g.ateam].losses++;
+      } else if (ascore > hscore) {
+        teams[g.ateam].wins++;
+        teams[g.hteam].losses++;
+      } else {
+        teams[g.hteam].draws++;
+        teams[g.ateam].draws++;
+      }
+    }
+  });
+
+  const ladder: AFLLadderEntry[] = Object.values(teams).map(t => {
+    const points = (t.wins * 4) + (t.draws * 2);
+    const percentage = t.against === 0 ? (t.for > 0 ? 1000 : 0) : (t.for / t.against) * 100;
+    return {
+      id: 0, // We don't have team IDs here, but we can use names as keys
+      name: t.name,
+      rank: 0,
+      wins: t.wins,
+      losses: t.losses,
+      draws: t.draws,
+      points,
+      percentage,
+      logo: getTeamLogoUrl(t.name)
+    };
+  });
+
+  return ladder.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    return b.percentage - a.percentage;
+  }).map((t, i) => ({ ...t, rank: i + 1 }));
+};
+
 export const fetchAFLLadder = async (year: number): Promise<AFLLadderEntry[]> => {
   try {
     const res = await fetch(`/api/squiggle/ladder?year=${year}`);
     const data = await res.json();
+    
+    const mapTeam = (team: any) => ({
+      ...team,
+      name: team.team || team.name,
+      id: team.teamid || team.id,
+      rank: team.rank || team.position || 0,
+      wins: team.wins || 0,
+      losses: team.losses || 0,
+      draws: team.draws || 0,
+      points: team.pts || team.points || 0,
+      percentage: parseFloat(team.percentage) || 0,
+      logo: getTeamLogoUrl(team.team || team.name)
+    });
+
     if (data.ladder) {
-      return data.ladder.map((team: any) => ({
-        ...team,
-        id: team.teamid || team.id,
-        percentage: parseFloat(team.percentage),
-      }));
+      return data.ladder.map(mapTeam);
     }
     return [];
   } catch (error) {

@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
-import { Game, User, Tip } from '../types.ts';
-import { getTeamLogoUrl, cleanTeamName } from '../utils.ts';
-import { Printer, ChevronRight, ChevronLeft, User as UserIcon, Calendar, Trophy, CheckCircle, XCircle, Send, X, AlertCircle, Copy, Check } from 'lucide-react';
+import { Game, User, Tip, LadderEntry } from '../types.ts';
+import { getTeamLogoUrl, cleanTeamName, generateLadder } from '../utils.ts';
+import { Printer, ChevronRight, ChevronLeft, User as UserIcon, Calendar, Trophy, CheckCircle, XCircle, Send, X, AlertCircle, Copy, Check, BarChart2, FileText } from 'lucide-react';
 
 interface ReportsPageProps {
   users: User[];
@@ -13,7 +13,7 @@ interface ReportsPageProps {
 const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>(users[0]?.id || '');
   const [selectedRound, setSelectedRound] = useState<number>(1);
-  const [reportType, setReportType] = useState<'results' | 'selections' | 'summary'>('results');
+  const [reportType, setReportType] = useState<'results' | 'selections' | 'summary' | 'leaderboard'>('results');
 
   const [isPrintPreview, setIsPrintPreview] = useState(false);
 
@@ -46,6 +46,14 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
           return tip ? tip.winner : "---";
         }).join("\t") + "\n";
       });
+    } else if (reportType === 'leaderboard') {
+      // Header
+      content += "Rank\tPlayer\tCorrect Tips\tMargin Error\tPoints\n";
+      // Rows
+      const ladder = generateLadder(users, games, year);
+      ladder.forEach((entry, idx) => {
+        content += `${idx + 1}\t${entry.userName}\t${entry.correctTips}\t${entry.totalMarginError}\t${entry.points}\n`;
+      });
     } else {
       // Header
       content += "#\tHome Team\tScore\tAway Team\tScore\tStatus\tTip\n";
@@ -60,6 +68,56 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     });
+  };
+
+  const handleExportToWord = () => {
+    const printContent = document.querySelector('.printable-area')?.innerHTML;
+    if (!printContent) return;
+
+    // Create a Word-compatible HTML document
+    const header = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+            xmlns:w='urn:schemas-microsoft-com:office:word' 
+            xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>Export To Word</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+          table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          .bg-slate-950 { background-color: #020617; color: white; padding: 20px; }
+          .text-blue-500 { color: #3b82f6; }
+          .font-black { font-weight: 900; }
+          .uppercase { text-transform: uppercase; }
+          .italic { font-style: italic; }
+          .text-5xl { font-size: 32pt; }
+          .text-3xl { font-size: 24pt; }
+          .text-xl { font-size: 18pt; }
+          .text-sm { font-size: 10pt; }
+          .text-xs { font-size: 9pt; }
+          .text-[10px] { font-size: 8pt; }
+          img { display: none; } /* Word doesn't handle external images well in this format */
+        </style>
+      </head>
+      <body>
+    `;
+    const footer = "</body></html>";
+    const sourceHTML = header + printContent + footer;
+    
+    const blob = new Blob(['\ufeff', sourceHTML], {
+      type: 'application/msword'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${selectedUser?.name || 'Report'}_Round_${selectedRound}_${reportType}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handlePrint = () => {
@@ -264,6 +322,14 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
             {copySuccess ? <Check size={18} /> : <Copy size={18} />}
             {copySuccess ? 'Copied!' : 'Copy to Spreadsheet'}
           </button>
+
+          <button 
+            onClick={handleExportToWord}
+            className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-heading font-black text-xs uppercase italic tracking-widest flex items-center gap-3 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50"
+          >
+            <FileText size={18} />
+            Export to Word
+          </button>
         </div>
 
         <div className="flex items-center gap-4 border-t border-slate-100 dark:border-white/5 pt-8">
@@ -286,6 +352,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
           >
             Round Summary (All Players)
           </button>
+          <button 
+            onClick={() => setReportType('leaderboard')}
+            className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${reportType === 'leaderboard' ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+          >
+            Full Leaderboard
+          </button>
         </div>
       </div>
       )}
@@ -300,9 +372,11 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400 italic">Official Season Report</span>
             </div>
             <h2 className="text-5xl font-heading font-black uppercase italic tracking-tighter leading-none">
-              {reportType === 'summary' ? 'Round' : selectedUser?.name + "'s"} <span className="text-blue-500">{reportType === 'results' ? 'Results' : reportType === 'selections' ? 'Selections' : 'Summary'}</span>
+              {reportType === 'summary' ? 'Round' : reportType === 'leaderboard' ? 'Season' : selectedUser?.name + "'s"} <span className="text-blue-500">{reportType === 'results' ? 'Results' : reportType === 'selections' ? 'Selections' : reportType === 'summary' ? 'Summary' : 'Leaderboard'}</span>
             </h2>
-            <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px] mt-4 italic">Round {selectedRound} • {year} AFL Premiership</p>
+            <p className="text-slate-500 font-black uppercase tracking-[0.4em] text-[10px] mt-4 italic">
+              {reportType === 'leaderboard' ? `Overall Standings • ${year} AFL Premiership` : `Round ${selectedRound} • ${year} AFL Premiership`}
+            </p>
           </div>
           <div className="text-right">
             {reportType === 'results' ? (
@@ -333,7 +407,7 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
                   <p className="text-3xl font-heading font-black text-blue-500 italic">READY</p>
                 </div>
               </div>
-            ) : (
+            ) : reportType === 'summary' ? (
               <div className="inline-flex items-center gap-6 bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-xl">
                 <div className="text-center">
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Players</p>
@@ -344,6 +418,22 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Tips</p>
                   <p className="text-3xl font-heading font-black text-blue-500 italic">
                     {users.reduce((acc, u) => acc + (u.tips[year]?.[selectedRound]?.length || 0), 0)}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-6 bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-xl">
+                <div className="text-center">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Top Player</p>
+                  <p className="text-3xl font-heading font-black text-white italic">
+                    {generateLadder(users, games, year)[0]?.userName || '---'}
+                  </p>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div className="text-center">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Avg Score</p>
+                  <p className="text-3xl font-heading font-black text-blue-500 italic">
+                    {Math.round(generateLadder(users, games, year).reduce((acc, l) => acc + l.points, 0) / users.length)}
                   </p>
                 </div>
               </div>
@@ -403,6 +493,52 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
                           </td>
                         );
                       })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : reportType === 'leaderboard' ? (
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900/80 border-b-2 border-slate-100 dark:border-white/10">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic border-r border-slate-100 dark:border-white/10 text-center">Rank</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic border-r border-slate-100 dark:border-white/10">Player</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic border-r border-slate-100 dark:border-white/10 text-center">Correct Tips</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic border-r border-slate-100 dark:border-white/10 text-center">Margin Error</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic text-center">Total Points</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y border-slate-100 dark:border-white/10">
+                  {generateLadder(users, games, year).map((entry, idx) => (
+                    <tr key={entry.userId} className="hover:bg-blue-50/30 dark:hover:bg-blue-500/5 transition-colors even:bg-slate-50/50 dark:even:bg-slate-900/30">
+                      <td className="px-6 py-6 border-r border-slate-100 dark:border-white/10 text-center">
+                        <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg font-black text-xs ${idx === 0 ? 'bg-yellow-400 text-yellow-950' : idx === 1 ? 'bg-slate-200 text-slate-600' : idx === 2 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
+                          {idx + 1}
+                        </div>
+                      </td>
+                      <td className="px-6 py-6 border-r border-slate-100 dark:border-white/10">
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={users.find(u => u.id === entry.userId)?.avatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(entry.userName)}`} 
+                            alt="" 
+                            className="w-8 h-8 rounded-lg bg-slate-100"
+                          />
+                          <span className="text-sm font-black uppercase italic text-slate-900 dark:text-white">{entry.userName}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-6 border-r border-slate-100 dark:border-white/10 text-center font-mono text-base font-black text-slate-600 dark:text-slate-300">
+                        {entry.correctTips}
+                      </td>
+                      <td className="px-6 py-6 border-r border-slate-100 dark:border-white/10 text-center">
+                        <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          {entry.totalMarginError} pts
+                        </span>
+                      </td>
+                      <td className="px-6 py-6 text-center">
+                        <span className={`text-xl font-black italic tracking-tighter ${idx === 0 ? 'text-blue-600' : 'text-slate-900 dark:text-white'}`}>
+                          {entry.points}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -10,6 +10,7 @@ interface BanterMessage {
   id: string;
   userId: string;
   userName: string;
+  userAvatar?: string;
   text: string;
   createdAt: Timestamp;
 }
@@ -55,6 +56,7 @@ const BanterPage: React.FC<BanterPageProps> = ({ user }) => {
       await addDoc(collection(db, 'banter'), {
         userId: user.id,
         userName: user.name,
+        userAvatar: user.avatar || null,
         text: newMessage,
         createdAt: serverTimestamp()
       });
@@ -106,8 +108,8 @@ const BanterPage: React.FC<BanterPageProps> = ({ user }) => {
               >
                 <div className={`flex items-center gap-2 mb-2 ${msg.userId === user.id ? 'flex-row-reverse' : ''}`}>
                   <img 
-                    src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(msg.userName)}`} 
-                    className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700" 
+                    src={msg.userAvatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(msg.userName)}`} 
+                    className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 object-cover" 
                     alt="" 
                   />
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 italic">{msg.userName}</span>

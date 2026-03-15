@@ -57,10 +57,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
               Operational Status: Active
             </div>
             <h1 className="text-6xl md:text-8xl font-heading font-black uppercase italic tracking-tighter leading-[0.85]">
-              Welcome Back, <br />
-              <span style={{ color: teamColors.primary }}>{user.name}</span>
+              2026 Season <br />
+              <span style={{ color: teamColors.primary }}>Tipping HQ</span>
             </h1>
-            <p className="text-slate-400 font-bold text-sm uppercase tracking-[0.4em] italic">The War Room is Ready</p>
+            <div className="flex items-center gap-4 mt-4">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 overflow-hidden shadow-xl">
+                <img src={user.avatar || `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(user.name)}`} alt={user.name} className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest italic leading-none">Active Commander</p>
+                <p className="text-lg font-black uppercase italic tracking-tighter text-white">{user.name}</p>
+              </div>
+            </div>
+            <p className="text-slate-400 font-bold text-sm uppercase tracking-[0.4em] italic mt-6">The War Room is Ready</p>
           </div>
           
           <div className="flex items-center gap-8">
