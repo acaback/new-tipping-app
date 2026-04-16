@@ -295,15 +295,22 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[60] w-full max-w-md px-6 print-hidden"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md print-hidden"
           >
             <button
               onClick={() => setShowConfirmModal(true)}
-              className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-6 rounded-[2.5rem] font-black text-sm uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] dark:shadow-[0_30px_60px_rgba(255,255,255,0.1)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4 border-4 border-purple-500"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 md:px-10 py-4 md:py-5 rounded-2xl md:rounded-3xl shadow-2xl shadow-purple-500/40 flex items-center justify-between group transition-all active:scale-95"
             >
-              <Sparkles size={20} className="text-purple-400" />
-              Submit All Tips
-              <div className="bg-purple-500 text-white text-[10px] px-2 py-0.5 rounded-full">Pending</div>
+              <div className="flex items-center gap-3 md:gap-4">
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform">
+                  <Send size={20} className="md:w-6 md:h-6" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] md:text-xs font-black uppercase tracking-widest opacity-70 leading-none mb-1">Pending Broadcast</p>
+                  <p className="text-sm md:text-lg font-heading font-black uppercase italic leading-none">Submit Round Tips</p>
+                </div>
+              </div>
+              <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </motion.div>
         )}
@@ -348,40 +355,40 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
       )}
 
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 print-hidden">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 md:gap-8 print-hidden">
         <div className="space-y-2">
-          <h2 className="text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tighter uppercase italic">
+          <h2 className="text-4xl md:text-5xl font-heading font-black text-slate-900 dark:text-white tracking-tighter uppercase italic">
             Season <span className="text-purple-600">Tipping</span>
           </h2>
-          <div className="flex items-center gap-3">
-            <span className="bg-slate-950 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-[0.2em] px-4 py-1.5 rounded-full">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <span className="bg-slate-950 dark:bg-white text-white dark:text-slate-900 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] px-3 md:px-4 py-1.5 rounded-full">
               {selectedRound === 0 ? 'Opening Round' : `Round ${selectedRound}`}
             </span>
-            <span className="text-slate-400 dark:text-slate-500 font-black uppercase text-[10px] tracking-[0.4em] italic">{year} SEASON</span>
+            <span className="text-slate-400 dark:text-slate-500 font-black uppercase text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.4em] italic">{year} SEASON</span>
             <button 
               onClick={handleRandomize}
-              className="flex items-center gap-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-white/10 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:border-purple-400 transition-all"
+              className="flex items-center gap-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-white/10 px-3 md:px-4 py-1.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:border-purple-400 transition-all"
             >
               <Dices size={14} className="text-purple-600" />
               Randomize
             </button>
           </div>
         </div>
-        <div className="flex flex-col gap-4 min-w-[300px] bg-white dark:bg-slate-800/50 p-6 rounded-[2.5rem] border-2 border-slate-100 dark:border-white/10 shadow-xl shadow-slate-200/50 dark:shadow-none">
+        <div className="flex flex-col gap-3 md:gap-4 w-full lg:min-w-[300px] lg:w-auto bg-white dark:bg-slate-800/50 p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 dark:border-white/10 shadow-xl shadow-slate-200/50 dark:shadow-none">
                 <div className="flex items-center justify-between mb-1 px-2">
-                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  <span className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                     {rounds[0] === 0 ? 'Opening' : `Round ${rounds[0]}`}
                   </span>
-                  <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest italic">Quick Navigation</span>
-                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Round {rounds[rounds.length - 1]}</span>
+                  <span className="text-[9px] md:text-[10px] font-black text-purple-600 uppercase tracking-widest italic">Quick Navigation</span>
+                  <span className="text-[8px] md:text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Round {rounds[rounds.length - 1]}</span>
                 </div>
-          <div className="flex items-center gap-4 px-2">
+          <div className="flex items-center gap-3 md:gap-4 px-2">
             <button 
               onClick={() => {
                 window.focus();
                 window.print();
               }} 
-              className="p-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-slate-600 dark:text-slate-300 transition-all z-50"
+              className="p-3 md:p-4 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl text-slate-600 dark:text-slate-300 transition-all z-50"
               title="Print Round"
             >
               <Printer size={16} />
@@ -401,7 +408,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
                 key={r}
                 data-round={r}
                 onClick={() => setSelectedRound(r)}
-                className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-[10px] font-heading font-black transition-all snap-center ${selectedRound === r ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-purple-900/50 -rotate-3 scale-105' : 'bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-300 border border-slate-100 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500'}`}
+                className={`flex-shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-[9px] md:text-[10px] font-heading font-black transition-all snap-center ${selectedRound === r ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-purple-900/50 -rotate-3 scale-105' : 'bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-300 border border-slate-100 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500'}`}
               >
                 {r === 0 ? 'OR' : r}
               </button>
@@ -411,55 +418,55 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
       </div>
 
       {/* Roster Progress */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        <div className="lg:col-span-8 bg-white dark:bg-slate-800/50 border-[3px] border-slate-100 dark:border-white/10 rounded-[3rem] p-10 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10">
+        <div className="lg:col-span-8 bg-white dark:bg-slate-800/50 border-[3px] border-slate-100 dark:border-white/10 rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-xl shadow-slate-200/50 dark:shadow-none relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-500" />
-          <div className="flex items-center gap-3 mb-10">
-            <Users size={24} className="text-purple-600" />
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white italic">Family Participation</h3>
+          <div className="flex items-center gap-3 mb-6 md:mb-10">
+            <Users size={20} className="text-purple-600 md:w-6 md:h-6" />
+            <h3 className="text-xs md:text-sm font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white italic">Family Participation</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {roundProgress.map(p => (
-              <div key={p.id} className={`p-4 rounded-[2rem] border-2 transition-all ${p.id === user.id ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20 ring-4 ring-purple-50 dark:ring-purple-500/10' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-white/10'}`}>
+              <div key={p.id} className={`p-4 rounded-[1.5rem] md:rounded-[2rem] border-2 transition-all ${p.id === user.id ? 'bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20 ring-4 ring-purple-50 dark:ring-purple-500/10' : 'bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-white/10'}`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(p.name)}`} className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 shadow-sm" alt={p.name} />
-                  <span className="text-[10px] font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{p.name}</span>
+                  <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(p.name)}`} className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white dark:bg-slate-700 shadow-sm" alt={p.name} />
+                  <span className="text-[9px] md:text-[10px] font-black uppercase tracking-tight truncate text-slate-900 dark:text-white">{p.name}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mr-3">
+                  <div className="flex-1 h-1.5 md:h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mr-3">
                     <div className={`h-full bg-purple-500 transition-all duration-1000`} style={{ width: `${(p.completed / p.total) * 100}%` }} />
                   </div>
-                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">{p.completed}/{p.total}</span>
+                  <span className="text-[9px] md:text-[10px] font-black text-slate-500 dark:text-slate-400">{p.completed}/{p.total}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="lg:col-span-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-500/20 rounded-[3rem] p-8 flex flex-col justify-center relative overflow-hidden group">
+        <div className="lg:col-span-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-500/20 rounded-[2rem] md:rounded-[3rem] p-6 md:p-8 flex flex-col justify-center relative overflow-hidden group">
           <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity rotate-12">
-            <ShieldCheck size={120} />
+            <ShieldCheck size={80} className="md:w-[120px] md:h-[120px]" />
           </div>
-          <div className="relative z-10 space-y-4">
+          <div className="relative z-10 space-y-3 md:space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg">
-                <Info size={20} />
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-lg">
+                <Info size={16} className="md:w-5 md:h-5" />
               </div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-amber-900 dark:text-amber-200 italic">League Rule #1</h3>
+              <h3 className="text-xs md:text-sm font-black uppercase tracking-widest text-amber-900 dark:text-amber-200 italic">League Rule #1</h3>
             </div>
-            <p className="text-xs font-bold text-amber-800 dark:text-amber-300 leading-relaxed uppercase tracking-tight">
+            <p className="text-[10px] md:text-xs font-bold text-amber-800 dark:text-amber-300 leading-relaxed uppercase tracking-tight">
               Forgot to tip? Don't stress! <br />
               <span className="text-amber-600 dark:text-amber-400">Away Teams</span> are automatically awarded to players who miss a kickoff.
             </p>
-            <div className="pt-2">
-              <span className="inline-block px-3 py-1 bg-amber-200 dark:bg-amber-500/30 rounded-lg text-[9px] font-black text-amber-900 dark:text-amber-100 uppercase tracking-widest">Automatic Fallback Active</span>
+            <div className="pt-1 md:pt-2">
+              <span className="inline-block px-3 py-1 bg-amber-200 dark:bg-amber-500/30 rounded-lg text-[8px] md:text-[9px] font-black text-amber-900 dark:text-amber-100 uppercase tracking-widest">Automatic Fallback Active</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Games List */}
-      <div className="space-y-10 printable-area">
+      <div className="space-y-6 md:space-y-10 printable-area">
         {roundGames.map((game, idx) => {
           const locked = isGameLocked(game, user, gameSettings);
           let currentTip = (draftTips[selectedRound] || []).find(t => t.gameId === game.id);
@@ -476,28 +483,28 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
           const aPercent = 100 - hPercent;
 
           return (
-            <div key={game.id} className={`group bg-white dark:bg-slate-800/50 rounded-[2.5rem] border-[3px] overflow-hidden transition-all duration-500 ${isWinner ? 'border-emerald-500 shadow-2xl ring-[12px] ring-emerald-50 dark:ring-emerald-500/10 scale-[1.02]' : 'border-slate-100 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500'}`}>
+            <div key={game.id} className={`group bg-white dark:bg-slate-800/50 rounded-[2rem] md:rounded-[2.5rem] border-[3px] overflow-hidden transition-all duration-500 ${isWinner ? 'border-emerald-500 shadow-2xl ring-[8px] md:ring-[12px] ring-emerald-50 dark:ring-emerald-500/10 scale-[1.01] md:scale-[1.02]' : 'border-slate-100 dark:border-white/10 hover:border-purple-400 dark:hover:border-purple-500'}`}>
               {/* Card Header */}
-              <div className="px-12 pt-10 pb-4 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${locked ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300' : 'bg-purple-600 text-white animate-pulse'}`}>
-                    {locked ? <Lock size={12} /> : <Unlock size={12} />}
+              <div className="px-6 md:px-12 pt-6 md:pt-10 pb-3 md:pb-4 flex justify-between items-center">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                  <div className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest ${locked ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-300' : 'bg-purple-600 text-white animate-pulse'}`}>
+                    {locked ? <Lock size={10} className="md:w-3 md:h-3" /> : <Unlock size={10} className="md:w-3 md:h-3" />}
                     {locked ? 'Closed' : 'Open'}
                   </div>
-                  {gameFinished && <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 rounded-full">Final Score</span>}
-                  {isFallback && <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-full flex items-center gap-1"><Clock size={10} /> Auto Away</span>}
+                  {gameFinished && <span className="text-[9px] md:text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-50 dark:bg-emerald-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded-full">Final Score</span>}
+                  {isFallback && <span className="text-[9px] md:text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-50 dark:bg-amber-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded-full flex items-center gap-1"><Clock size={10} /> Auto Away</span>}
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-300 dark:text-slate-500 uppercase tracking-[0.4em]">{game.venue}</p>
+                  <p className="text-[8px] md:text-[10px] font-black text-slate-300 dark:text-slate-500 uppercase tracking-[0.2em] md:tracking-[0.4em]">{game.venue}</p>
                 </div>
               </div>
 
               {/* Countdown / Time */}
               {!locked && (
-                <div className="text-center mb-6">
-                   <div className="inline-block px-8 py-3 bg-slate-900 dark:bg-slate-950 rounded-2xl shadow-xl">
-                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-[0.5em] mb-1">Match Start (AWST)</p>
-                    <p className="text-xl font-heading font-black text-white italic">
+                <div className="text-center mb-4 md:mb-6 px-6">
+                   <div className="inline-block px-4 md:px-8 py-2 md:py-3 bg-slate-900 dark:bg-slate-950 rounded-xl md:rounded-2xl shadow-xl">
+                    <p className="text-[8px] md:text-[10px] font-black text-purple-400 uppercase tracking-[0.3em] md:tracking-[0.5em] mb-1">Match Start (AWST)</p>
+                    <p className="text-sm md:text-xl font-heading font-black text-white italic">
                       {formatAFLDate(game.date, { weekday: 'short', day: 'numeric', month: 'short' })} @ {formatAFLDate(game.date, { hour: '2-digit', minute: '2-digit' })}
                     </p>
                    </div>
@@ -505,8 +512,8 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
               )}
 
               {/* Battle Grid */}
-              <div className="px-12 py-12 grid grid-cols-1 md:grid-cols-7 items-center gap-8">
-                <div className="md:col-span-3">
+              <div className="px-6 md:px-12 py-6 md:py-12 grid grid-cols-1 lg:grid-cols-7 items-center gap-6 md:gap-8">
+                <div className="lg:col-span-3">
                   <MatchTeam 
                     name={game.hteam} 
                     score={game.hscore} 
@@ -520,13 +527,13 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
                     onClick={() => handleTipClick(game.id, game.hteam)}
                   />
                 </div>
-                <div className="md:col-span-1 flex flex-col items-center z-20">
-                    <span className="text-5xl font-heading font-black text-slate-100 dark:text-slate-700 italic select-none group-hover:scale-125 transition-transform">VS</span>
+                <div className="lg:col-span-1 flex flex-col items-center z-20">
+                    <span className="text-3xl md:text-5xl font-heading font-black text-slate-100 dark:text-slate-700 italic select-none group-hover:scale-125 transition-transform">VS</span>
                   {idx === 0 && (
-                    <div className="mt-8 flex flex-col items-center gap-6 animate-in slide-in-from-top-4">
+                    <div className="mt-4 md:mt-8 flex flex-col items-center gap-4 md:gap-6 animate-in slide-in-from-top-4">
                       <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                        <label className="text-[10px] font-black text-purple-600 uppercase tracking-[0.2em] italic">Tiebreaker Margin</label>
+                        <label className="text-[9px] md:text-[10px] font-black text-purple-600 uppercase tracking-[0.2em] italic">Tiebreaker Margin</label>
                       </div>
                       <MarginSelector 
                         value={currentTip?.margin ?? null}
@@ -536,7 +543,7 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
                     </div>
                   )}
                 </div>
-                <div className="md:col-span-3">
+                <div className="lg:col-span-3">
                   <MatchTeam 
                     name={game.ateam} 
                     score={game.ascore} 
@@ -555,16 +562,16 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
 
               {/* Status Footer */}
               {gameFinished && (
-                <div className={`px-12 py-6 border-t-2 border-slate-50 dark:border-white/5 flex items-center justify-between ${isWinner ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-rose-50 dark:bg-rose-500/10'}`}>
+                <div className={`px-6 md:px-12 py-4 md:py-6 border-t-2 border-slate-50 dark:border-white/5 flex items-center justify-between ${isWinner ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-rose-50 dark:bg-rose-500/10'}`}>
                    <div className="flex items-center gap-2">
                      {isWinner ? (
-                       <><div className="bg-emerald-500 text-white p-2 rounded-xl"><CheckCircle size={16} /></div> <span className="text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase italic">Victory point added</span></>
+                       <><div className="bg-emerald-500 text-white p-1.5 md:p-2 rounded-lg md:rounded-xl"><CheckCircle size={14} className="md:w-4 md:h-4" /></div> <span className="text-[10px] md:text-xs font-black text-emerald-700 dark:text-emerald-400 uppercase italic">Victory point added</span></>
                      ) : (
-                       <><div className="bg-rose-500 text-white p-2 rounded-xl"><AlertCircle size={16} /></div> <span className="text-xs font-black text-rose-700 dark:text-rose-400 uppercase italic">Tip inaccurate</span></>
+                       <><div className="bg-rose-500 text-white p-1.5 md:p-2 rounded-lg md:rounded-xl"><AlertCircle size={14} className="md:w-4 md:h-4" /></div> <span className="text-[10px] md:text-xs font-black text-rose-700 dark:text-rose-400 uppercase italic">Tip inaccurate</span></>
                      )}
                    </div>
                    {idx === 0 && currentTip && typeof currentTip.margin === 'number' && (
-                     <div className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">
+                     <div className="text-[8px] md:text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">
                         Error: <span className="text-slate-900 dark:text-white">{Math.abs((currentTip.margin || 0) - Math.abs((game.hscore || 0) - (game.ascore || 0)))} pts</span>
                      </div>
                    )}
@@ -575,17 +582,17 @@ const TippingPage: React.FC<TippingPageProps> = ({ user, users, onUpdateUsers, g
         })}
 
         {/* Action Footer */}
-        <div className="bg-slate-950 dark:bg-slate-900 rounded-[4rem] p-16 shadow-2xl relative overflow-hidden text-center md:text-left print-hidden">
+        <div className="bg-slate-950 dark:bg-slate-900 rounded-[2rem] md:rounded-[4rem] p-8 md:p-16 shadow-2xl relative overflow-hidden text-center md:text-left print-hidden">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-purple-600/10 blur-[100px]" />
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 md:gap-12">
             <div>
-              <h3 className="text-4xl font-heading font-black text-white italic uppercase mb-2">Deploy Tactics?</h3>
-              <p className="text-purple-300 font-bold text-sm uppercase tracking-widest opacity-80">{hasChanges ? "Your round tips are pending broadcast." : "Round data is fully synchronized."}</p>
+              <h3 className="text-2xl md:text-4xl font-heading font-black text-white italic uppercase mb-2">Deploy Tactics?</h3>
+              <p className="text-purple-300 font-bold text-xs md:text-sm uppercase tracking-widest opacity-80">{hasChanges ? "Your round tips are pending broadcast." : "Round data is fully synchronized."}</p>
             </div>
             <button
               onClick={() => setShowConfirmModal(true)}
               disabled={!hasChanges}
-              className={`px-16 py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.4em] transition-all italic ${hasChanges ? 'bg-white text-slate-950 shadow-2xl hover:scale-105 active:scale-95' : 'bg-white/5 text-white/20'}`}
+              className={`w-full md:w-auto px-8 md:px-16 py-4 md:py-6 rounded-[1.5rem] md:rounded-[2rem] font-black text-xs md:text-sm uppercase tracking-[0.2em] md:tracking-[0.4em] transition-all italic ${hasChanges ? 'bg-white text-slate-950 shadow-2xl hover:scale-105 active:scale-95' : 'bg-white/5 text-white/20'}`}
             >
               {hasChanges ? "Submit Tips" : "Tips Synced"}
             </button>
@@ -626,7 +633,7 @@ const MatchTeam: React.FC<{
       }}
       whileHover={!disabled ? { scale: isSelected ? 1.08 : 1.03, y: -4 } : {}}
       whileTap={!disabled ? { scale: 0.97 } : {}}
-      className={`relative w-full h-32 rounded-[2.5rem] border-[4px] transition-all p-6 flex items-center gap-4 ${align === 'right' ? 'flex-row-reverse text-right' : 'text-left'} ${isSelected ? 'shadow-2xl' : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500 hover:shadow-xl'} ${disabled ? 'opacity-90' : 'cursor-pointer'}`}
+      className={`relative w-full h-24 md:h-32 rounded-[1.5rem] md:rounded-[2.5rem] border-[3px] md:border-[4px] transition-all p-3 md:p-6 flex items-center gap-3 md:gap-4 ${align === 'right' ? 'flex-row-reverse text-right' : 'text-left'} ${isSelected ? 'shadow-2xl' : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500 hover:shadow-xl'} ${disabled ? 'opacity-90' : 'cursor-pointer'}`}
       style={isSelected ? { 
         backgroundColor: colors.primary, 
         borderColor: colors.secondary, 
@@ -642,7 +649,7 @@ const MatchTeam: React.FC<{
           } : { scale: 1 }}
           whileTap={!disabled ? { scale: 0.9 } : {}}
           transition={{ duration: 0.4 }}
-          className={`w-16 h-16 p-3 rounded-[1.5rem] shadow-xl flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-white border-white' : 'bg-white dark:bg-slate-700 border-slate-50 dark:border-white/10'}`}
+          className={`w-12 h-12 md:w-16 md:h-16 p-2 md:p-3 rounded-[1rem] md:rounded-[1.5rem] shadow-xl flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-white border-white' : 'bg-white dark:bg-slate-700 border-slate-50 dark:border-white/10'}`}
         >
           <img src={getTeamLogoUrl(name)} alt={name} className="w-full h-full object-contain" />
         </motion.div>
@@ -662,26 +669,26 @@ const MatchTeam: React.FC<{
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <h4 className="text-lg font-heading font-black uppercase italic tracking-tighter truncate leading-none">{clean}</h4>
+        <div className="flex items-center gap-2 mb-0.5 md:mb-1">
+          <h4 className="text-sm md:text-lg font-heading font-black uppercase italic tracking-tighter truncate leading-none">{clean}</h4>
           {isFallback && isSelected && (
-            <div className="px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 rounded-md flex items-center gap-1">
-              <ShieldCheck size={10} className="text-amber-600 dark:text-amber-400" />
-              <span className="text-[8px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest">Fallback</span>
+            <div className="px-1.5 md:px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 rounded-md flex items-center gap-1">
+              <ShieldCheck size={8} className="text-amber-600 dark:text-amber-400 md:w-2.5 md:h-2.5" />
+              <span className="text-[7px] md:text-[8px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest">Fallback</span>
             </div>
           )}
         </div>
         {score !== null ? (
-          <p className="text-3xl font-heading font-black">{score}</p>
+          <p className="text-xl md:text-3xl font-heading font-black">{score}</p>
         ) : (
-          <div className={`mt-1 space-y-1.5 ${align === 'right' ? 'flex flex-col items-end' : ''}`}>
+          <div className={`mt-0.5 md:mt-1 space-y-1 md:space-y-1.5 ${align === 'right' ? 'flex flex-col items-end' : ''}`}>
              <div className="flex items-center gap-1.5">
-                <span className={`text-[9px] font-black uppercase tracking-widest opacity-70`}>{percent}%</span>
-                <div className="flex -space-x-2">
-                  {tippedUsers.slice(0, 5).map(u => (
+                <span className={`text-[8px] md:text-[9px] font-black uppercase tracking-widest opacity-70`}>{percent}%</span>
+                <div className="flex -space-x-1.5 md:-space-x-2">
+                  {tippedUsers.slice(0, 3).map(u => (
                     <div 
                       key={u.id} 
-                      className={`w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 bg-white dark:bg-slate-700 overflow-hidden relative ${u.id === currentUser.id ? 'ring-2 ring-yellow-400 z-10' : 'z-0'}`}
+                      className={`w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-white dark:border-slate-800 bg-white dark:bg-slate-700 overflow-hidden relative ${u.id === currentUser.id ? 'ring-2 ring-yellow-400 z-10' : 'z-0'}`}
                       title={u.name}
                     >
                       <img src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(u.name)}`} alt={u.name} className="w-full h-full object-cover" />
@@ -690,14 +697,14 @@ const MatchTeam: React.FC<{
                       )}
                     </div>
                   ))}
-                  {tippedUsers.length > 5 && (
-                    <div className="w-5 h-5 rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[7px] font-black text-slate-500">
-                      +{tippedUsers.length - 5}
+                  {tippedUsers.length > 3 && (
+                    <div className="w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-white dark:border-slate-800 bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[6px] md:text-[7px] font-black text-slate-500">
+                      +{tippedUsers.length - 3}
                     </div>
                   )}
                 </div>
              </div>
-             <div className="w-20 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800/50 overflow-hidden">
+             <div className="w-16 md:w-20 h-1 md:h-1.5 rounded-full bg-slate-100 dark:bg-slate-800/50 overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${percent}%` }}
@@ -716,8 +723,8 @@ const MatchTeam: React.FC<{
           className={`absolute ${align === 'left' ? 'right-6' : 'left-6'} top-1/2 -translate-y-1/2`}
         >
           <div className="flex flex-col items-center">
-            <CheckCircle size={24} className={isSelected ? 'text-white' : 'text-emerald-500'} />
-            <span className="text-[8px] font-black uppercase tracking-tighter mt-1">Selected</span>
+            <CheckCircle size={18} className={isSelected ? 'text-white md:w-6 md:h-6' : 'text-emerald-500 md:w-6 md:h-6'} />
+            <span className="text-[7px] md:text-[8px] font-black uppercase tracking-tighter mt-0.5 md:mt-1">Selected</span>
           </div>
         </motion.div>
       )}
@@ -726,9 +733,9 @@ const MatchTeam: React.FC<{
         <motion.div 
           initial={{ scale: 0, rotate: -45 }}
           animate={{ scale: 1, rotate: 12 }}
-          className={`absolute -top-6 ${align === 'left' ? '-left-6' : '-right-6'} bg-yellow-400 text-slate-900 p-4 rounded-3xl shadow-2xl border-4 border-white dark:border-slate-800`}
+          className={`absolute -top-4 md:-top-6 ${align === 'left' ? '-left-4 md:-left-6' : '-right-4 md:-right-6'} bg-yellow-400 text-slate-900 p-2 md:p-4 rounded-2xl md:rounded-3xl shadow-2xl border-2 md:border-4 border-white dark:border-slate-800`}
         >
-          <Trophy size={28} />
+          <Trophy size={20} className="md:w-7 md:h-7" />
         </motion.div>
       )}
     </motion.button>

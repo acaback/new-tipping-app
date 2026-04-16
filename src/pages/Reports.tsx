@@ -13,7 +13,7 @@ interface ReportsPageProps {
 const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>(users[0]?.id || '');
   const [selectedRound, setSelectedRound] = useState<number>(1);
-  const [reportType, setReportType] = useState<'results' | 'selections' | 'summary' | 'leaderboard'>('results');
+  const [reportType, setReportType] = useState<'results' | 'selections' | 'summary' | 'leaderboard' | 'weekly'>('results');
 
   const [isPrintPreview, setIsPrintPreview] = useState(false);
 
@@ -39,12 +39,21 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
       // Header
       content += "Matchup\t" + users.map(u => u.name).join("\t") + "\n";
       // Rows
-      roundGames.forEach(game => {
+      roundGames.forEach((game, idx) => {
         content += `${game.hteam} vs ${game.ateam}\t`;
         content += users.map(u => {
           const tip = u.tips[year]?.[selectedRound]?.find(t => t.gameId === game.id);
           return tip ? tip.winner : "---";
         }).join("\t") + "\n";
+
+        // Add margin row after the first game
+        if (idx === 0) {
+          content += "Margin (Game 1)\t";
+          content += users.map(u => {
+            const tip = u.tips[year]?.[selectedRound]?.find(t => t.gameId === game.id);
+            return (tip && tip.margin !== null) ? tip.margin : "---";
+          }).join("\t") + "\n";
+        }
       });
     } else if (reportType === 'leaderboard') {
       // Header
@@ -53,6 +62,25 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
       const ladder = generateLadder(users, games, year);
       ladder.forEach((entry, idx) => {
         content += `${idx + 1}\t${entry.userName}\t${entry.correctTips}\t${entry.totalMarginError}\t${entry.points}\n`;
+      });
+    } else if (reportType === 'weekly') {
+      // Header
+      content += "Player\t" + rounds.map(r => `Rd ${r}`).join("\t") + "\tTotal\n";
+      // Rows
+      users.forEach(u => {
+        content += `${u.name}\t`;
+        const roundPoints = rounds.map(r => {
+          const roundGames = games.filter(g => g.round === r && g.complete === 100);
+          let points = 0;
+          roundGames.forEach(g => {
+            const tip = u.tips[year]?.[r]?.find(t => t.gameId === g.id);
+            const effectiveWinner = tip?.winner || g.ateam;
+            if (effectiveWinner === g.winner) points++;
+          });
+          return points;
+        });
+        const totalPoints = roundPoints.reduce((a, b) => a + b, 0);
+        content += roundPoints.join("\t") + `\t${totalPoints}\n`;
       });
     } else {
       // Header
@@ -358,6 +386,12 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
           >
             Full Leaderboard
           </button>
+          <button 
+            onClick={() => setReportType('weekly')}
+            className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${reportType === 'weekly' ? 'bg-slate-900 dark:bg-blue-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
+          >
+            Weekly Breakdown
+          </button>
         </div>
       </div>
       )}
@@ -418,6 +452,20 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Tips</p>
                   <p className="text-3xl font-heading font-black text-blue-500 italic">
                     {users.reduce((acc, u) => acc + (u.tips[year]?.[selectedRound]?.length || 0), 0)}
+                  </p>
+                </div>
+              </div>
+            ) : reportType === 'weekly' ? (
+              <div className="inline-flex items-center gap-6 bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-xl">
+                <div className="text-center">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Rounds</p>
+                  <p className="text-3xl font-heading font-black text-white italic">{rounds.length}</p>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div className="text-center">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Avg Rd Score</p>
+                  <p className="text-3xl font-heading font-black text-blue-500 italic">
+                    {Math.round(generateLadder(users, games, year).reduce((acc, l) => acc + l.points, 0) / (users.length * (rounds.filter(r => games.some(g => g.round === r && g.complete === 100)).length || 1)))}
                   </p>
                 </div>
               </div>
@@ -495,6 +543,62 @@ const ReportsPage: React.FC<ReportsPageProps> = ({ users, games, year }) => {
                       })}
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            ) : reportType === 'weekly' ? (
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900/80 border-b-2 border-slate-100 dark:border-white/10">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic border-r border-slate-100 dark:border-white/10">Player</th>
+                    {rounds.map(r => (
+                      <th key={r} className="px-3 py-4 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest italic border-r border-slate-100 dark:border-white/10 text-center min-w-[60px]">
+                        Rd {r}
+                      </th>
+                    ))}
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest italic text-center bg-blue-50/50 dark:bg-blue-500/10">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y border-slate-100 dark:border-white/10">
+                  {generateLadder(users, games, year).map((entry) => {
+                    const u = users.find(user => user.id === entry.userId)!;
+                    let totalPoints = 0;
+                    return (
+                      <tr key={u.id} className="hover:bg-blue-50/30 dark:hover:bg-blue-500/5 transition-colors even:bg-slate-50/50 dark:even:bg-slate-900/30">
+                        <td className="px-6 py-4 border-r border-slate-100 dark:border-white/10">
+                          <span className="text-xs font-black uppercase italic text-slate-900 dark:text-white">{u.name}</span>
+                        </td>
+                        {rounds.map(r => {
+                          const roundGames = games.filter(g => g.round === r && g.complete === 100);
+                          let points = 0;
+                          roundGames.forEach(g => {
+                            const tip = u.tips[year]?.[r]?.find(t => t.gameId === g.id);
+                            const effectiveWinner = tip?.winner || g.ateam;
+                            if (effectiveWinner === g.winner) points++;
+                          });
+                          totalPoints += points;
+                          const isHighestInRound = points > 0 && users.every(otherUser => {
+                            if (otherUser.id === u.id) return true;
+                            let otherPoints = 0;
+                            roundGames.forEach(g => {
+                              const tip = otherUser.tips[year]?.[r]?.find(t => t.gameId === g.id);
+                              const effectiveWinner = tip?.winner || g.ateam;
+                              if (effectiveWinner === g.winner) otherPoints++;
+                            });
+                            return points >= otherPoints;
+                          });
+
+                          return (
+                            <td key={r} className={`px-3 py-4 border-r border-slate-100 dark:border-white/10 text-center font-mono text-xs font-black ${isHighestInRound ? 'text-blue-600 dark:text-blue-400 bg-blue-50/20' : 'text-slate-500'}`}>
+                              {points}
+                            </td>
+                          );
+                        })}
+                        <td className="px-6 py-4 text-center font-black italic text-blue-600 bg-blue-50/30 dark:bg-blue-500/5">
+                          {totalPoints}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : reportType === 'leaderboard' ? (

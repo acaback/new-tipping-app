@@ -2,7 +2,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Game, User, AFLLadderEntry, LadderEntry } from '../types';
 import { generateLadder, fetchAFLLadder, getTeamLogoUrl, cleanTeamName, getTeamColors, calculateAFLLadder } from '../utils';
-import { Trophy, Medal, MinusCircle, Info, ChevronUp, ChevronDown, Users, BarChart2, ArrowUpDown } from 'lucide-react';
+import { Trophy, Medal, MinusCircle, Info, ChevronUp, ChevronDown, Users, BarChart2, ArrowUpDown, BookOpen } from 'lucide-react';
+import RulesModal from '../components/RulesModal.tsx';
 
 interface LadderPageProps {
   users: User[];
@@ -18,6 +19,7 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
   const [aflLadder, setAflLadder] = useState<AFLLadderEntry[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
   
   // Sorting state
   const [familySort, setFamilySort] = useState<{ key: FamilySortKey; direction: 'asc' | 'desc' }>({ key: 'rank', direction: 'asc' });
@@ -82,9 +84,12 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
     // Then, try to fetch official ladder for comparison or as fallback
     const official = await fetchAFLLadder(year);
     
-    // If official ladder has data, use it (it might have more accurate tie-breakers)
-    // Otherwise use our calculated one
-    if (official && official.length > 0) {
+    // Compare total points to see which ladder is more up-to-date
+    // If calculated has more points or equal, it's likely more "live"
+    const totalOfficialPoints = official.reduce((acc, t) => acc + (t.points || 0), 0);
+    const totalCalculatedPoints = calculated.reduce((acc, t) => acc + (t.points || 0), 0);
+    
+    if (official && official.length > 0 && totalOfficialPoints > totalCalculatedPoints) {
       setAflLadder(official);
     } else {
       setAflLadder(calculated);
@@ -126,6 +131,7 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
           <h2 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase italic"><span className="text-blue-600">Competition</span> Central</h2>
@@ -317,6 +323,7 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
                             </div>
                           </td>
                           <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.wins}</td>
+                          <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.wins}</td>
                           <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.losses}</td>
                           <td className="px-8 py-4 text-center text-slate-600 dark:text-slate-300 font-black text-lg tabular-nums">{team.draws}</td>
                           <td className="px-8 py-4 text-center text-slate-400 dark:text-slate-500 font-bold text-sm tabular-nums">{typeof team.percentage === 'number' ? team.percentage.toFixed(1) : 'N/A'}%</td>
@@ -346,20 +353,28 @@ const LadderPage: React.FC<LadderPageProps> = ({ users, games, year }) => {
         )}
       </div>
 
-      <div className="flex items-start gap-4 p-8 bg-white dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/10 rounded-[2.5rem] shadow-sm animate-in fade-in duration-1000">
-        <div className="bg-blue-50 dark:bg-blue-500/10 p-3 rounded-2xl text-blue-400 shrink-0 shadow-inner">
-          <Info size={24} />
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-8 bg-white dark:bg-slate-800/50 border-2 border-slate-100 dark:border-white/10 rounded-[2.5rem] shadow-sm animate-in fade-in duration-1000">
+        <div className="flex items-start gap-4">
+          <div className="bg-blue-50 dark:bg-blue-500/10 p-3 rounded-2xl text-blue-400 shrink-0 shadow-inner">
+            <Info size={24} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Competition Protocol</p>
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-bold leading-relaxed italic">
+              Tie-breaker rule: If players have the same total points, the player with the <span className="text-blue-600 font-black">lowest cumulative margin error</span> is ranked higher. 
+            </p>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Competition Protocol</p>
-          <p className="text-xs text-slate-600 dark:text-slate-300 font-bold leading-relaxed italic">
-            Tie-breaker rule: If players have the same total points, the player with the <span className="text-blue-600 font-black">lowest cumulative margin error</span> is ranked higher. 
-            Bonus points for exact margins are automatically calculated into the final score.
-          </p>
-        </div>
+        <button 
+          onClick={() => setIsRulesOpen(true)}
+          className="px-8 py-4 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest italic flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg"
+        >
+          <BookOpen size={16} /> Full Competition Rules
+        </button>
       </div>
     </div>
   );
 };
 
 export default LadderPage;
+

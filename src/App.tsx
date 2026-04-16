@@ -31,6 +31,9 @@ import ReportsPage from './pages/Reports.tsx';
 import DashboardPage from './pages/Dashboard.tsx';
 import BanterPage from './pages/Banter.tsx';
 
+import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { auth } from './firebase';
+
 const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -38,55 +41,89 @@ const App: React.FC = () => {
   const [gameSettings, setGameSettings] = useState<GameSettings>({ manualLocks: {} });
   const [currentYear, setCurrentYear] = useState<number>(2026);
   const [appReady, setAppReady] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const location = useLocation();
   const teamColors = currentUser?.favoriteTeam ? getTeamColors(currentUser.favoriteTeam) : { primary: '#2563eb', secondary: '#3b82f6', text: 'white' };
 
   useEffect(() => {
-    const init = async () => {
-      const data = await loadUsersFromDB();
-      const session = loadSession();
-      const settings = await loadGameSettings();
-      
-      // Migration: Ensure all users have usernames and reset admin if requested
-      const updatedData = data.map(u => {
-        // Force reset admin as requested
-        if (u.id === 'adrian') {
-          return { ...u, username: 'admin', password: 'password2026' };
-        }
-        // Ensure other users have default credentials if missing (for legacy data)
-        if (!u.username) {
-          return { ...u, username: u.id, password: 'password123' };
-        }
-        return u;
-      });
-      
-      if (JSON.stringify(data) !== JSON.stringify(updatedData)) {
-        await saveAllUsersToDB(updatedData);
-        setUsers(updatedData);
-      } else {
-        setUsers(data);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
-      setGameSettings(settings);
-      
-      // Respect saved session if available
-      const savedUser = updatedData.find(u => u.id === session.userId);
-      if (savedUser) {
-        setCurrentUser(savedUser);
-      } else {
-        // Fallback to first admin
-        const adminUser = updatedData.find(u => u.isAdmin) || updatedData[0];
-        if (adminUser) setCurrentUser(adminUser);
+  useEffect(() => {
+    if (!authReady) return;
+    const init = async () => {
+      try {
+        const data = await loadUsersFromDB();
+        const session = loadSession();
+        const settings = await loadGameSettings();
+        
+        // Migration: Ensure all users have usernames and reset admin if requested
+        const updatedData = data.map(u => {
+          // Force reset admin as requested
+          if (u.id === 'adrian') {
+            return { ...u, username: 'admin', password: 'password2026' };
+          }
+          // Ensure other users have default credentials if missing (for legacy data)
+          if (!u.username) {
+            return { ...u, username: u.id, password: 'password123' };
+          }
+          return u;
+        });
+        
+        if (JSON.stringify(data) !== JSON.stringify(updatedData)) {
+          await saveAllUsersToDB(updatedData);
+          setUsers(updatedData);
+        } else {
+          setUsers(data);
+        }
+
+        setGameSettings(settings);
+        
+        // Respect saved session if available
+        const savedUser = updatedData.find(u => u.id === session.userId);
+        if (savedUser) {
+          setCurrentUser(savedUser);
+        } else {
+          // Fallback to first admin
+          const adminUser = updatedData.find(u => u.isAdmin) || updatedData[0];
+          if (adminUser) setCurrentUser(adminUser);
+        }
+        
+        const gameData = await fetchGames(2026);
+        setGames(gameData);
+      } catch (error) {
+        console.error("Initialization failed", error);
+        // Fallback to local data if not already set
+        if (users.length === 0) {
+          const initial = await loadUsersFromDB();
+          setUsers(initial);
+          setCurrentUser(initial[0]);
+        }
+      } finally {
+        setAppReady(true);
       }
-      
-      const gameData = await fetchGames(2026);
-      setGames(gameData);
-      setAppReady(true);
     };
     init();
-  }, []);
+  }, [authReady]);
+
+  useEffect(() => {
+    if (!appReady) return;
+    
+    // Periodically refresh games data for live updates
+    const interval = setInterval(async () => {
+      const gameData = await fetchGames(currentYear);
+      if (gameData && gameData.length > 0) {
+        setGames(gameData);
+      }
+    }, 60 * 1000); // Every minute
+    
+    return () => clearInterval(interval);
+  }, [appReady, currentYear]);
 
   useEffect(() => {
     if (!appReady) return;
@@ -143,7 +180,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (!appReady || !currentUser) {
+  if (!appReady || !currentUser || !authReady) {
     return (
       <div className="h-screen w-screen bg-white dark:bg-slate-950 flex flex-col items-center justify-center space-y-8">
         <CloudLightning className="text-blue-500 animate-pulse" size={64} />
@@ -206,7 +243,30 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* User Switcher (Moved to a more subtle location if needed, but keeping for admin control) */}
+              {/* Cloud Auth Status */}
+              {!isLocalMode() && (
+                <div className="px-2">
+                  {auth.currentUser ? (
+                    <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck size={12} className="text-emerald-500" />
+                        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Cloud Active</span>
+                      </div>
+                      <button onClick={() => signOut(auth)} className="text-[9px] font-black text-slate-400 hover:text-rose-500 uppercase tracking-widest cursor-pointer">Sign Out</button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}
+                      className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20 cursor-pointer"
+                    >
+                      <CloudLightning size={12} />
+                      Sign In to Cloud
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* User Switcher */}
               <div className="px-2">
                 <label className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-2 px-1">Active Player Context</label>
                 <select 

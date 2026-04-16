@@ -1,0 +1,12 @@
+AFL TIPPING APP - DEVELOPMENT PROMPTS
+=======================================
+
+1. Initial Request: Create a comprehensive AFL Tipping Competition application for family use, featuring user authentication, real-time game data from the Squiggle API, a live ladder, and a polished, modern UI.
+
+2. Deployment: "send this ap to firebase" (Integrated Firebase for database and authentication).
+
+3. Bug Fix: "The AFL Live ladder is still calculating incorrect results." (Optimized ladder calculation logic, standardized team names, and added live score integration).
+
+4. UI/UX Optimization: "On the Tipping page, optimize the layout for smaller screens by ensuring game cards are stacked vertically and selectors are easily accessible. Consider a sticky submit button at the bottom." (Implemented responsive design for mobile tipping).
+
+5. Documentation: "Can you make a list of all the prompts that i have used to create this app and creat a text document format?" (Generated this document).

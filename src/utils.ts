@@ -1,13 +1,65 @@
 
 import { collection, doc, getDocs, setDoc, getDoc, writeBatch, getDocsFromServer, query } from 'firebase/firestore';
 import { Game, User, LadderEntry, ApplicationState, AFLLadderEntry, GameSettings } from './types.ts';
-import { db } from './firebase';
+import { auth, db } from './firebase';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 export const SESSION_KEY = 'adrians_tipping_session';
 
+import firebaseConfig from '../firebase-applet-config.json';
+
 export const isLocalMode = () => {
-  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
-  return !apiKey || apiKey === 'your-api-key' || apiKey.trim() === '';
+  return !firebaseConfig.apiKey || firebaseConfig.apiKey === 'your-api-key' || firebaseConfig.apiKey.trim() === '';
 };
 
 const USERS_STORAGE_KEY = 'adrians_tipping_users';
@@ -32,8 +84,6 @@ export const loadUsersFromDB = async (): Promise<User[]> => {
   }
 
   try {
-    // Use getDocsFromServer to ensure we get the latest data from the cloud, 
-    // bypassing any local cache that might be stale after an import.
     const querySnapshot = await getDocsFromServer(collection(db, 'users'));
     const users = querySnapshot.docs.map(doc => doc.data() as User);
     if (users.length === 0) {
@@ -41,16 +91,7 @@ export const loadUsersFromDB = async (): Promise<User[]> => {
     }
     return users;
   } catch (error) {
-    console.error("Error loading users from Firestore: ", error);
-    // Fallback to local cache if server is unreachable
-    try {
-      const querySnapshot = await getDocs(collection(db, 'users'));
-      const users = querySnapshot.docs.map(doc => doc.data() as User);
-      if (users.length > 0) return users;
-    } catch (e) {
-      console.error("Local fallback also failed", e);
-    }
-    
+    console.warn("Firestore loadUsersFromDB failed, falling back to local/initial users", error);
     const local = localStorage.getItem(USERS_STORAGE_KEY);
     if (local) return JSON.parse(local);
     return getInitialUsers();
@@ -71,15 +112,7 @@ export const saveAllUsersToDB = async (users: User[]) => {
     });
     await batch.commit();
   } catch (error) {
-    console.error("Error saving users to Firestore: ", error);
-    // Fallback to individual sets if batch fails
-    for (const user of users) {
-      try {
-        await setDoc(doc(db, 'users', user.id), user);
-      } catch (e) {
-        console.error(`Failed to save user ${user.id}`, e);
-      }
-    }
+    handleFirestoreError(error, OperationType.WRITE, 'users');
   }
 };
 
@@ -92,28 +125,19 @@ export const restoreData = async (users: User[], settings: GameSettings) => {
 
   try {
     const batch = writeBatch(db);
-
-    // 2. Clear existing users to ensure a clean restore
     const snapshot = await getDocsFromServer(collection(db, 'users'));
     snapshot.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
-
-    // 3. Add new users from backup
     users.forEach((user) => {
       const userRef = doc(db, 'users', user.id);
       batch.set(userRef, user);
     });
-
-    // 4. Update settings
     const settingsRef = doc(db, 'settings', 'global');
     batch.set(settingsRef, settings);
-
     await batch.commit();
-    console.log("Cloud restore completed successfully");
   } catch (error) {
-    console.error("Error during cloud restore:", error);
-    throw error;
+    handleFirestoreError(error, OperationType.WRITE, 'restore');
   }
 };
 
@@ -132,7 +156,7 @@ export const loadGameSettings = async (): Promise<GameSettings> => {
     }
     return { manualLocks: {} };
   } catch (error) {
-    console.error("Error loading settings from Firestore: ", error);
+    console.warn("Firestore loadGameSettings failed, falling back to local/default", error);
     const local = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (local) return JSON.parse(local);
     return { manualLocks: {} };
@@ -147,7 +171,7 @@ export const saveGameSettings = async (settings: GameSettings) => {
   try {
     await setDoc(doc(db, 'settings', 'global'), settings);
   } catch (error) {
-    console.error("Error saving settings to Firestore: ", error);
+    handleFirestoreError(error, OperationType.WRITE, 'settings/global');
   }
 };
 
@@ -352,40 +376,63 @@ export const importData = async (file: File): Promise<{ users: User[], settings:
   }
 };
 
+export const AFL_TEAMS = [
+  "Adelaide", "Brisbane Lions", "Carlton", "Collingwood", "Essendon", "Fremantle",
+  "Geelong", "Gold Coast", "Greater Western Sydney", "Hawthorn", "Melbourne", "North Melbourne",
+  "Port Adelaide", "Richmond", "St Kilda", "Sydney", "West Coast", "Western Bulldogs"
+];
+
 export const calculateAFLLadder = (games: Game[]): AFLLadderEntry[] => {
   const teams: Record<string, { wins: number, losses: number, draws: number, for: number, against: number, name: string }> = {};
 
+  // Initialize all 18 teams using standardized names
+  AFL_TEAMS.forEach(name => {
+    teams[name] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name };
+  });
+
   games.forEach(g => {
-    if (g.complete === 100) {
-      if (!teams[g.hteam]) teams[g.hteam] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name: g.hteam };
-      if (!teams[g.ateam]) teams[g.ateam] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name: g.ateam };
+    // Include games that have started (complete > 0)
+    if (g.complete > 0) {
+      // Normalize names using cleanTeamName for robust matching
+      const hteamClean = cleanTeamName(g.hteam);
+      const ateamClean = cleanTeamName(g.ateam);
+      
+      const hteam = AFL_TEAMS.find(t => cleanTeamName(t) === hteamClean) || g.hteam;
+      const ateam = AFL_TEAMS.find(t => cleanTeamName(t) === ateamClean) || g.ateam;
+
+      if (!teams[hteam]) teams[hteam] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name: hteam };
+      if (!teams[ateam]) teams[ateam] = { wins: 0, losses: 0, draws: 0, for: 0, against: 0, name: ateam };
 
       const hscore = g.hscore || 0;
       const ascore = g.ascore || 0;
 
-      teams[g.hteam].for += hscore;
-      teams[g.hteam].against += ascore;
-      teams[g.ateam].for += ascore;
-      teams[g.ateam].against += hscore;
+      teams[hteam].for += hscore;
+      teams[hteam].against += ascore;
+      teams[ateam].for += ascore;
+      teams[ateam].against += hscore;
 
-      if (hscore > ascore) {
-        teams[g.hteam].wins++;
-        teams[g.ateam].losses++;
-      } else if (ascore > hscore) {
-        teams[g.ateam].wins++;
-        teams[g.hteam].losses++;
-      } else {
-        teams[g.hteam].draws++;
-        teams[g.ateam].draws++;
+      // Only count wins/losses/draws for completed games
+      if (g.complete === 100) {
+        if (hscore > ascore) {
+          teams[hteam].wins++;
+          teams[ateam].losses++;
+        } else if (ascore > hscore) {
+          teams[ateam].wins++;
+          teams[hteam].losses++;
+        } else {
+          teams[hteam].draws++;
+          teams[ateam].draws++;
+        }
       }
     }
   });
 
   const ladder: AFLLadderEntry[] = Object.values(teams).map(t => {
     const points = (t.wins * 4) + (t.draws * 2);
-    const percentage = t.against === 0 ? (t.for > 0 ? 1000 : 0) : (t.for / t.against) * 100;
+    // AFL percentage: (For / Against) * 100
+    const percentage = t.against === 0 ? (t.for > 0 ? 999.9 : 0) : (t.for / t.against) * 100;
     return {
-      id: 0, // We don't have team IDs here, but we can use names as keys
+      id: 0,
       name: t.name,
       rank: 0,
       wins: t.wins,
@@ -398,8 +445,16 @@ export const calculateAFLLadder = (games: Game[]): AFLLadderEntry[] => {
   });
 
   return ladder.sort((a, b) => {
+    // 1. Points
     if (b.points !== a.points) return b.points - a.points;
-    return b.percentage - a.percentage;
+    // 2. Percentage
+    if (Math.abs(b.percentage - a.percentage) > 0.001) return b.percentage - a.percentage;
+    // 3. Points For (as a secondary tie-breaker)
+    const teamA = teams[a.name];
+    const teamB = teams[b.name];
+    if (teamB && teamA && teamB.for !== teamA.for) return teamB.for - teamA.for;
+    // 4. Alphabetical
+    return a.name.localeCompare(b.name);
   }).map((t, i) => ({ ...t, rank: i + 1 }));
 };
 

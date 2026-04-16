@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Game, User, LadderEntry } from '../types.ts';
 import { generateLadder, getTeamLogoUrl, cleanTeamName, formatAFLDate, getTeamColors } from '../utils.ts';
@@ -14,9 +14,11 @@ import {
   Activity,
   Target,
   Award,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import RulesModal from '../components/RulesModal.tsx';
 
 interface DashboardProps {
   user: User;
@@ -26,6 +28,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
   const ladder = useMemo(() => generateLadder(users, games, year), [users, games, year]);
   const userRank = useMemo(() => ladder.findIndex(l => l.userId === user.id) + 1, [ladder, user.id]);
   const userStats = useMemo(() => ladder.find(l => l.userId === user.id), [ladder, user.id]);
@@ -47,6 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-10 pb-20">
+      <RulesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} />
       {/* Hero Welcome */}
       <div className="relative overflow-hidden rounded-[3.5rem] bg-slate-950 p-12 text-white shadow-2xl" style={{ borderLeft: `8px solid ${teamColors.primary}` }}>
         <div className="absolute top-0 right-0 w-1/2 h-full blur-[120px] -rotate-12 translate-x-1/4" style={{ backgroundColor: `${teamColors.primary}30` }} />
@@ -119,10 +123,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
                 
                 <div className="flex flex-col items-center gap-2">
                   <span className="text-4xl font-heading font-black text-slate-200 dark:text-slate-700 italic">VS</span>
-                  <div className="px-4 py-1.5 text-white rounded-full text-[10px] font-black uppercase tracking-widest" style={{ backgroundColor: teamColors.primary }}>
-                    {formatAFLDate(nextGame.date, { hour: '2-digit', minute: '2-digit' })} AWST
+                  <div className="px-4 py-1.5 text-white rounded-full text-[10px] font-black uppercase tracking-widest text-center" style={{ backgroundColor: teamColors.primary }}>
+                    {formatAFLDate(nextGame.date, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{nextGame.venue}</span>
+                  <div className="flex flex-col items-center mt-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{nextGame.venue}</span>
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">{nextGame.roundname}</span>
+                  </div>
                 </div>
 
                 <div className="flex flex-col items-center gap-4 w-40">
@@ -171,13 +178,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
           <div className="space-y-4">
             {recentGames.map(game => (
               <div key={game.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-white/5">
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-3 flex-1">
                   <img src={getTeamLogoUrl(game.hteam)} className="w-8 h-8 object-contain" alt="" />
-                  <span className="text-xs font-black uppercase italic" style={{ color: game.winner === game.hteam ? teamColors.primary : '#94a3b8' }}>{game.hscore}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">{cleanTeamName(game.hteam)}</span>
+                    <span className="text-sm font-black italic" style={{ color: game.winner === game.hteam ? teamColors.primary : '#94a3b8' }}>{game.hscore}</span>
+                  </div>
                 </div>
                 <div className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg text-[8px] font-black text-slate-500 uppercase">Final</div>
-                <div className="flex items-center gap-4 flex-1 justify-end">
-                  <span className="text-xs font-black uppercase italic" style={{ color: game.winner === game.ateam ? teamColors.primary : '#94a3b8' }}>{game.ascore}</span>
+                <div className="flex items-center gap-3 flex-1 justify-end text-right">
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] font-black uppercase tracking-tighter text-slate-400">{cleanTeamName(game.ateam)}</span>
+                    <span className="text-sm font-black italic" style={{ color: game.winner === game.ateam ? teamColors.primary : '#94a3b8' }}>{game.ascore}</span>
+                  </div>
                   <img src={getTeamLogoUrl(game.ateam)} className="w-8 h-8 object-contain" alt="" />
                 </div>
               </div>
@@ -208,9 +221,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
               </div>
             </div>
             <div className="p-5 bg-blue-50 dark:bg-blue-500/5 rounded-2xl border border-blue-100 dark:border-blue-500/10">
-              <div className="flex items-center gap-2 mb-2">
-                <ShieldCheck size={14} className="text-blue-600" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">League Rule</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-blue-600" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">League Rules</span>
+                </div>
+                <button 
+                  onClick={() => setIsRulesOpen(true)}
+                  className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-blue-600 hover:underline"
+                >
+                  <BookOpen size={12} /> View All
+                </button>
               </div>
               <p className="text-[10px] font-bold text-blue-900 dark:text-blue-200 leading-relaxed uppercase tracking-tight">
                 Missed a tip? You'll automatically get the <span className="text-blue-600 dark:text-blue-400">Away Team</span> for that match.
@@ -225,3 +246,4 @@ const Dashboard: React.FC<DashboardProps> = ({ user, users, games, year }) => {
 };
 
 export default Dashboard;
+

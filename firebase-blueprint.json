@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "avatar": { "type": "string" },
+        "favoriteTeam": { "type": "string" },
+        "isAdmin": { "type": "boolean" }
+      },
+      "required": ["username", "name", "isAdmin"]
+    },
+    "UserTips": {
+      "title": "UserTips",
+      "description": "Tips for a specific year",
+      "type": "object",
+      "properties": {
+        "year": { "type": "integer" },
+        "rounds": {
+          "type": "object",
+          "description": "Map of round numbers to array of tips"
+        }
+      },
+      "required": ["year", "rounds"]
+    },
+    "Game": {
+      "title": "Game",
+      "description": "AFL Game details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "year": { "type": "integer" },
+        "round": { "type": "integer" },
+        "roundname": { "type": "string" },
+        "hteam": { "type": "string" },
+        "ateam": { "type": "string" },
+        "hscore": { "type": "integer" },
+        "ascore": { "type": "integer" },
+        "winner": { "type": "string" },
+        "date": { "type": "string" },
+        "localtime": { "type": "string" },
+        "venue": { "type": "string" },
+        "complete": { "type": "integer" }
+      },
+      "required": ["id", "year", "round", "hteam", "ateam", "date"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "manualLocks": { "type": "object" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/tips/{year}": {
+      "schema": "UserTips",
+      "description": "User tips per year"
+    },
+    "/games/{gameId}": {
+      "schema": "Game",
+      "description": "AFL games data"
+    },
+    "/settings/global": {
+      "schema": "Settings",
+      "description": "Global app settings"
+    }
+  }
+}

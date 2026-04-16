@@ -2,6 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import cors from "cors";
 import { Resend } from "resend";
+import fetch from "node-fetch";
 
 async function startServer() {
   const app = express();
@@ -23,9 +24,24 @@ async function startServer() {
     try {
       const response = await fetch(`https://api.squiggle.com.au/?q=games&year=${year}`, {
         headers: {
-          'User-Agent': 'AdrianFamilyTippingComp/1.0 (Contact: acaback@gmail.com)'
+          'User-Agent': 'AdrianFamilyTippingComp/1.0 (Contact: acaback@gmail.com)',
+          'Accept': 'application/json'
         }
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`Squiggle Games API error: ${response.status} ${response.statusText}`, text);
+        return res.status(response.status).json({ error: `Squiggle API returned ${response.status}`, details: text.substring(0, 500) });
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error(`Squiggle Games API returned non-JSON response: ${contentType}`, text);
+        return res.status(500).json({ error: "Squiggle API returned non-JSON response", details: text.substring(0, 500) });
+      }
+
       const data = await response.json();
       res.json(data);
     } catch (error) {
@@ -39,9 +55,24 @@ async function startServer() {
     try {
       const response = await fetch(`https://api.squiggle.com.au/?q=ladder&year=${year}`, {
         headers: {
-          'User-Agent': 'AdrianFamilyTippingComp/1.0 (Contact: acaback@gmail.com)'
+          'User-Agent': 'AdrianFamilyTippingComp/1.0 (Contact: acaback@gmail.com)',
+          'Accept': 'application/json'
         }
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`Squiggle Ladder API error: ${response.status} ${response.statusText}`, text);
+        return res.status(response.status).json({ error: `Squiggle API returned ${response.status}`, details: text.substring(0, 500) });
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error(`Squiggle Ladder API returned non-JSON response: ${contentType}`, text);
+        return res.status(500).json({ error: "Squiggle API returned non-JSON response", details: text.substring(0, 500) });
+      }
+
       const data = await response.json();
       res.json(data);
     } catch (error) {
